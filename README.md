@@ -77,7 +77,7 @@ Stock value is quantity times unit cost, rounded to the nearest yen. Lines with 
 The phone site uses Supabase for the data and Vercel for the pages. This PC can still run `npm start` on its own SQLite file.
 
 1. In Supabase, open **SQL Editor**, paste `supabase/schema.sql`, and run it.
-2. Open **Project Settings → Database → Connection string**, choose **Session pooler**, and copy the URI.
+2. In the Supabase project, click **Connect** at the top of the page. Choose **Session pooler**. Copy the string. Replace `[YOUR-PASSWORD]` with the database password you set when you created the project. If you forgot it, reset it under **Project Settings → Database**.
 3. In PowerShell, from this folder, copy the catalog once. Replace the URI with yours. Do not commit it.
 
 ```powershell
