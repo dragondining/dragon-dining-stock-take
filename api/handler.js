@@ -7,21 +7,22 @@ export const config = {
 
 const lock = { fails: 0, until: 0 }
 
+function publicError(error) {
+  const message = String(error?.message || 'Something went wrong on this computer.')
+  if (/postgres(ql)?:\/\//i.test(message) || /password/i.test(message)) {
+    return 'The database connection was refused. Check SUPABASE_DB_URL, then redeploy.'
+  }
+  return message
+}
+
 export default async function handler(req, res) {
   try {
-    if (req.body != null && !req.readable) {
-      const payload = Buffer.isBuffer(req.body) ? req.body : Buffer.from(typeof req.body === 'string' ? req.body : JSON.stringify(req.body))
-      req.on = (event, fn) => {
-        if (event === 'data') fn(payload)
-        if (event === 'end') fn()
-        return req
-      }
-    }
+    if (!req.url) req.url = '/'
     await route(openPostgres(), lock, req, res)
   } catch (error) {
     const status = error.status || 500
-    if (status >= 500) console.error(error)
-    const body = JSON.stringify({ error: status >= 500 ? 'Something went wrong on this computer.' : error.message })
+    console.error(error)
+    const body = JSON.stringify({ error: publicError(error) })
     res.statusCode = status
     res.setHeader('content-type', 'application/json; charset=utf-8')
     res.end(body)

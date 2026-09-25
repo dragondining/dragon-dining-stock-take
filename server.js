@@ -100,7 +100,7 @@ async function maybeAutoImport(db) {
 }
 
 export async function route(db, lock, req, res) {
-  const url = new URL(req.url, 'http://localhost')
+  const url = new URL(req.url || '/', 'http://localhost')
   const { pathname } = url
 
   if (req.method === 'GET' && STATIC[pathname]) {
@@ -282,22 +282,20 @@ async function readJson(req) {
 
 function sendJson(res, status, body) {
   const payload = Buffer.from(JSON.stringify(body))
-  res.writeHead(status, {
-    'content-type': 'application/json; charset=utf-8',
-    'content-length': payload.length,
-    'cache-control': 'no-store',
-  })
+  res.statusCode = status
+  res.setHeader('content-type', 'application/json; charset=utf-8')
+  res.setHeader('content-length', payload.length)
+  res.setHeader('cache-control', 'no-store')
   res.end(payload)
 }
 
 function sendText(res, status, body, type, extra = {}) {
   const payload = Buffer.from(body)
-  res.writeHead(status, {
-    'content-type': type,
-    'content-length': payload.length,
-    'cache-control': 'no-store',
-    ...extra,
-  })
+  res.statusCode = status
+  res.setHeader('content-type', type)
+  res.setHeader('content-length', payload.length)
+  res.setHeader('cache-control', 'no-store')
+  for (const [key, value] of Object.entries(extra)) res.setHeader(key, value)
   res.end(payload)
 }
 
