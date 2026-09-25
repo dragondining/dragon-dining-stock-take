@@ -90,6 +90,7 @@ function flash(message) {
 }
 
 function statusText() {
+  if (state.problem) return state.problem
   if (state.pending.length > 0 || !state.online) return 'Waiting to sync'
   return syncLabel(0)
 }
@@ -1306,8 +1307,14 @@ function stopCamera() {
 async function refresh() {
   try {
     const response = await fetch('/api/state')
-    if (!response.ok) throw new Error('status')
-    const data = await response.json()
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      state.online = false
+      state.problem = data.error || 'The server did not answer.'
+      render()
+      return
+    }
+    state.problem = ''
     state.rooms = data.rooms
     state.products = data.products
     state.counts = data.counts
