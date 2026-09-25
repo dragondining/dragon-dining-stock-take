@@ -1,0 +1,11 @@
+{
+  "name": "Dragon Dining Stock Take",
+  "short_name": "Stock Take",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf7f5",
+  "theme_color": "#c23b3b",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
