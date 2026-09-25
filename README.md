@@ -22,9 +22,21 @@ The first start reads `Starter Files\Inventory_for_Grok_MVP.xlsx` when the datab
 
 The database file is `data\stocktake.sqlite`.
 
+## Sign in
+
+On the public site, people sign in with a username and password stored by Supabase. The part of the email before `@` is the username. The first account is a manager. Later accounts are staff and can count, but they cannot open manager tools.
+
+1. In the Supabase SQL Editor, run `supabase/auth.sql`.
+2. Open **Authentication → Users → Add user**.
+3. Enter an email such as `manager@dragondining.local`, a password, and turn on **Auto Confirm**.
+4. That person signs in with username `manager` and the password you chose.
+5. On Vercel, add `SUPABASE_URL` (the project URL, like `https://xxxx.supabase.co`) and `SUPABASE_ANON_KEY` (Project Settings → API → anon public key). Redeploy.
+
+The local `npm start` server on this PC still uses the manager PIN **1234**.
+
 ## Manager PIN
 
-The PIN starts as **1234**. Change it under Manager → Change PIN. Use 4 to 8 digits.
+On this computer only, the PIN starts as **1234**. Change it under Manager → Change PIN. Use 4 to 8 digits.
 
 The PIN is required to edit items, replace the catalog, move an item's room, and finish a stock take. Linking a barcode to an item that already exists does not need the PIN, so a count is not stuck on an unknown code.
 

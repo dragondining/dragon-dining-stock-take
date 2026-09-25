@@ -19,6 +19,9 @@ const ui = {
   overlay: null,
   strip: null,
   token: '',
+  authMode: 'pin',
+  role: '',
+  username: '',
   flash: '',
   productPage: 0,
   productRoom: '',
@@ -76,7 +79,12 @@ function authHeaders(json) {
 
 function clearToken() {
   ui.token = ''
+  ui.role = ''
+  ui.username = ''
   sessionStorage.removeItem('dd.token')
+  sessionStorage.removeItem('dd.refresh')
+  sessionStorage.removeItem('dd.role')
+  sessionStorage.removeItem('dd.username')
 }
 
 function flash(message) {
@@ -244,7 +252,10 @@ function roomHtml(route) {
 function manageHtml(route) {
   const sync = `<div class="sync" data-sync aria-live="polite"></div>`
   const top = `<div class="wrap"><div class="top"><div class="brand">Manager</div>${sync}</div>`
-  if (!ui.token) return `${top}<h1>Manager</h1><p class="help">Enter the manager PIN.</p><div id="pin-mount"></div></div>`
+  if (ui.authMode === 'supabase' && ui.role !== 'manager') {
+    return `${top}<h1>Manager</h1><p class="help">This account cannot open manager tools.</p></div>`
+  }
+  if (ui.authMode !== 'supabase' && !ui.token) return `${top}<h1>Manager</h1><p class="help">Enter the manager PIN.</p><div id="pin-mount"></div></div>`
   if (route.section === 'products' || route.section === 'product') {
     const roomOptions = state.rooms.map((room) => `<option value="${room.id}">${esc(room.name)}</option>`).join('')
     return `<div class="wrap wide"><div class="top"><div class="brand">Manager</div>${sync}</div>
@@ -283,8 +294,8 @@ function manageHtml(route) {
       <a href="#/manage/import">Import catalog</a>
       <a href="#/manage/finish">Finish stock take</a>
       <a href="#/manage/archives">Past stock takes</a>
-      <a href="#/manage/pin">Change PIN</a>
-      <button id="logout" class="ghost" type="button">Lock manager</button>
+      ${ui.authMode === 'supabase' ? '' : '<a href="#/manage/pin">Change PIN</a>'}
+      <button id="logout" class="ghost" type="button">${ui.authMode === 'supabase' ? 'Sign out' : 'Lock manager'}</button>
     </div></div>`
 }
 
@@ -335,7 +346,8 @@ function bind(route) {
   document.getElementById('logout')?.addEventListener('click', () => {
     clearToken()
     mounted = ''
-    render()
+    if (ui.authMode === 'supabase') renderLogin()
+    else render()
   })
   if (route.name === 'manage') bindManage(route)
 }
@@ -553,7 +565,7 @@ function createHtml(overlay) {
   return `
     <h2>New item</h2>
     <p>Barcode <strong>${esc(overlay.code)}</strong></p>
-    ${ui.token ? '' : '<label class="field" for="create-pin">Manager PIN</label><input id="create-pin" type="password" inputmode="numeric" autocomplete="one-time-code">'}
+    ${ui.authMode === 'supabase' || ui.token ? '' : '<label class="field" for="create-pin">Manager PIN</label><input id="create-pin" type="password" inputmode="numeric" autocomplete="one-time-code">'}
     <div class="form-grid">
       <label class="field" for="create-name">Name</label>
       <input id="create-name" type="text" autocomplete="off">
@@ -1308,6 +1320,11 @@ async function refresh() {
   try {
     const response = await fetch('/api/state')
     const data = await response.json().catch(() => ({}))
+    if (response.status === 401 && ui.authMode === 'supabase') {
+      clearToken()
+      renderLogin()
+      return
+    }
     if (!response.ok) {
       state.online = false
       state.problem = data.error || 'The server did not answer.'
@@ -1328,9 +1345,63 @@ async function refresh() {
   render()
 }
 
+function renderLogin() {
+  mounted = 'login'
+  document.getElementById('app').innerHTML = `
+    <div class="wrap">
+      <h1>Sign in</h1>
+      <p class="help">Use your Dragon Dining username and password.</p>
+      <form id="login-form" class="form-grid">
+        <label class="field" for="login-user">Username</label>
+        <input id="login-user" type="text" autocomplete="username" autocapitalize="off">
+        <label class="field" for="login-pass">Password</label>
+        <input id="login-pass" type="password" autocomplete="current-password">
+        <button class="primary" type="submit">Sign in</button>
+      </form>
+    </div>`
+  document.getElementById('login-form').addEventListener('submit', submitLogin)
+  document.getElementById('login-user').focus()
+}
+
+async function submitLogin(event) {
+  event.preventDefault()
+  const response = await fetch('/api/login', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      username: document.getElementById('login-user').value,
+      password: document.getElementById('login-pass').value,
+    }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) return flash(data.error || 'That username or password is not right.')
+  ui.token = data.token
+  ui.role = data.role
+  ui.username = data.username
+  sessionStorage.setItem('dd.token', data.token)
+  sessionStorage.setItem('dd.refresh', data.refresh_token || '')
+  sessionStorage.setItem('dd.role', data.role || '')
+  sessionStorage.setItem('dd.username', data.username || '')
+  mounted = ''
+  await refresh()
+}
+
 async function boot() {
   ui.tally = localStorage.getItem('dd.tally') !== '0'
   ui.token = sessionStorage.getItem('dd.token') || ''
+  ui.role = sessionStorage.getItem('dd.role') || ''
+  ui.username = sessionStorage.getItem('dd.username') || ''
+  try {
+    const mode = await (await fetch('/api/auth/mode')).json()
+    ui.authMode = mode.mode === 'supabase' ? 'supabase' : 'pin'
+  } catch {
+    ui.authMode = 'pin'
+  }
+  if (ui.authMode === 'supabase' && !ui.token) {
+    renderLogin()
+    window.addEventListener('hashchange', () => { if (!ui.token) renderLogin() })
+    return
+  }
   const cached = await idbGet('catalog')
   const pending = await idbGet('pending')
   if (cached?.products) {

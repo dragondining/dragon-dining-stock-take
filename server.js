@@ -8,6 +8,7 @@ import { csvFromSnapshot, filenameForLabel } from './src/csv.js'
 import { getSetting, openDatabase, prepareDatabase } from './src/db.js'
 import { HttpError } from './src/errors.js'
 import { one } from './src/query.js'
+import { loginWithUsername, profileFromToken, supabaseAuthEnabled } from './src/supabase-auth.js'
 import {
   abandonCounts,
   addBarcode,
@@ -116,10 +117,35 @@ export async function route(db, lock, req, res) {
   }
 
   if (req.method === 'GET' && pathname === '/api/health') {
-    sendJson(res, 200, { ok: true })
+    sendJson(res, 200, { ok: true, auth: supabaseAuthEnabled() ? 'supabase' : 'pin' })
+    return
+  }
+  if (req.method === 'GET' && pathname === '/api/auth/mode') {
+    sendJson(res, 200, { mode: supabaseAuthEnabled() ? 'supabase' : 'pin' })
+    return
+  }
+  if (req.method === 'POST' && pathname === '/api/login') {
+    if (!supabaseAuthEnabled()) throw new HttpError(400, 'Password sign-in is not turned on for this server.')
+    const body = await readJson(req)
+    if (lock.until > Date.now()) throw new HttpError(429, 'Too many tries. Wait 30 seconds.')
+    try {
+      const session = await loginWithUsername(db, body.username, body.password)
+      lock.fails = 0
+      sendJson(res, 200, session)
+    } catch (error) {
+      if (error.status === 401) {
+        lock.fails += 1
+        if (lock.fails >= 5) {
+          lock.until = Date.now() + 30_000
+          lock.fails = 0
+        }
+      }
+      throw error
+    }
     return
   }
   if (req.method === 'GET' && pathname === '/api/state') {
+    await requireUser(db, req)
     sendJson(res, 200, await getState(db))
     return
   }
@@ -147,11 +173,13 @@ export async function route(db, lock, req, res) {
     return
   }
   if (req.method === 'POST' && pathname === '/api/counts') {
+    await requireUser(db, req)
     const body = await readJson(req)
     sendJson(res, 200, { results: await applyCounts(db, body.counts) })
     return
   }
   if (req.method === 'POST' && pathname === '/api/barcodes') {
+    await requireUser(db, req)
     const body = await readJson(req)
     sendJson(res, 200, { product: await addBarcode(db, body.code, Number(body.product_id)) })
     return
@@ -244,10 +272,25 @@ export async function route(db, lock, req, res) {
   sendJson(res, 404, { error: 'That page is not here.' })
 }
 
-async function requireManager(db, req) {
+function bearerToken(req) {
   const header = req.headers.authorization || ''
-  const token = header.startsWith('Bearer ') ? header.slice(7) : ''
-  const session = readToken(await getSetting(db, 'token_secret'), token)
+  return header.startsWith('Bearer ') ? header.slice(7) : ''
+}
+
+async function requireUser(db, req) {
+  if (!supabaseAuthEnabled()) return { role: 'manager', username: 'local' }
+  const session = await profileFromToken(db, bearerToken(req))
+  if (!session) throw new HttpError(401, 'Sign in required.')
+  return session
+}
+
+async function requireManager(db, req) {
+  if (supabaseAuthEnabled()) {
+    const session = await requireUser(db, req)
+    if (session.role !== 'manager') throw new HttpError(403, 'A manager account is required.')
+    return session
+  }
+  const session = readToken(await getSetting(db, 'token_secret'), bearerToken(req))
   if (!session) throw new HttpError(401, 'Manager PIN required.')
   return session
 }
