@@ -1,4 +1,5 @@
 import { route } from '../server.js'
+import { prepareDatabase } from '../src/db.js'
 import { openPostgres } from '../src/pg.js'
 
 export const config = {
@@ -18,7 +19,12 @@ function publicError(error) {
 export default async function handler(req, res) {
   try {
     if (!req.url) req.url = '/'
-    await route(openPostgres(), lock, req, res)
+    const db = openPostgres()
+    if (!globalThis.__dragonDiningReady) {
+      await prepareDatabase(db)
+      globalThis.__dragonDiningReady = true
+    }
+    await route(db, lock, req, res)
   } catch (error) {
     const status = error.status || 500
     console.error(error)
