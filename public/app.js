@@ -281,6 +281,7 @@ function manageHtml(route) {
       </div>
     </div>`
   }
+  if (route.section === 'people') return `${top}<h1>People</h1><div id="people-admin"></div></div>`
   if (route.section === 'rooms') return `${top}<h1>Rooms</h1><div id="room-admin"></div></div>`
   if (route.section === 'import') return `${top}<h1>Import catalog</h1><div id="import-admin"></div><div id="report" class="report"></div></div>`
   if (route.section === 'finish') return `${top}<h1>Finish stock take</h1><p id="live-total" class="summary"></p><div id="finish-admin"></div></div>`
@@ -289,6 +290,7 @@ function manageHtml(route) {
   return `${top}
     <h1>Manager</h1>
     <div class="menu">
+      ${ui.authMode === 'supabase' ? '<a href="#/manage/people">People</a>' : ''}
       <a href="#/manage/products">Items and barcodes</a>
       <a href="#/manage/rooms">Rooms</a>
       <a href="#/manage/import">Import catalog</a>
@@ -393,6 +395,7 @@ function bindManage(route) {
     if (button) saveTableRow(button.closest('tr'))
   })
   if (route.section === 'products' || route.section === 'product') paintProductAdmin()
+  if (route.section === 'people') fillPeople()
   if (route.section === 'rooms') fillRooms()
   if (route.section === 'import') fillImport()
   if (route.section === 'finish') fillFinish()
@@ -809,6 +812,7 @@ async function saveCreate() {
     ui.token = data.token
     sessionStorage.setItem('dd.token', data.token)
   }
+  if (!ui.token && ui.authMode === 'supabase') return flash('Sign in to add an item.')
   if (!ui.token) return flash('A manager PIN is required to add an item.')
   const body = { name, room_id: roomId, unit_cost_yen: costText || null, barcode: overlay.code }
   const tempId = -Date.now()
@@ -1070,6 +1074,92 @@ function loseManager() {
   location.hash = '#/manage'
   mounted = ''
   render()
+}
+
+async function fillPeople() {
+  const root = document.getElementById('people-admin')
+  if (!root) return
+  const response = await fetch('/api/people', { headers: authHeaders() })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    root.innerHTML = `<p class="empty">${esc(data.error || 'People could not be loaded.')}</p>`
+    return
+  }
+  root.innerHTML = `
+    <div class="stack" id="people-list">${(data.people || []).map((person) => `
+      <div class="card" data-person="${esc(person.username)}">
+        <strong>${esc(person.username)}</strong>
+        <label class="field">Permission
+          <select data-role>
+            <option value="staff" ${person.role === 'staff' ? 'selected' : ''}>Staff — count and add unknown items</option>
+            <option value="manager" ${person.role === 'manager' ? 'selected' : ''}>Manager</option>
+          </select>
+        </label>
+        <button class="ghost" type="button" data-save-role>Save permission</button>
+        <label class="field">New password<input data-password type="password" autocomplete="new-password"></label>
+        <button class="ghost" type="button" data-save-password>Set password</button>
+      </div>`).join('') || '<p class="empty">No people yet.</p>'}
+    </div>
+    <h2>Add a person</h2>
+    <div class="form-grid">
+      <label class="field">Username<input id="new-username" type="text" autocomplete="off" autocapitalize="off"></label>
+      <label class="field">Password<input id="new-password" type="password" autocomplete="new-password"></label>
+      <label class="field">Permission
+        <select id="new-role">
+          <option value="staff">Staff — count and add unknown items</option>
+          <option value="manager">Manager</option>
+        </select>
+      </label>
+    </div>
+    <button id="add-person" class="primary" type="button">Add person</button>`
+  root.querySelector('#add-person').addEventListener('click', addPerson)
+  root.querySelectorAll('[data-save-role]').forEach((button) => {
+    button.addEventListener('click', () => savePersonRole(button.closest('[data-person]')))
+  })
+  root.querySelectorAll('[data-save-password]').forEach((button) => {
+    button.addEventListener('click', () => savePersonPassword(button.closest('[data-person]')))
+  })
+}
+
+async function addPerson() {
+  const response = await fetch('/api/people', {
+    method: 'POST',
+    headers: authHeaders(true),
+    body: JSON.stringify({
+      username: document.getElementById('new-username').value,
+      password: document.getElementById('new-password').value,
+      role: document.getElementById('new-role').value,
+    }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (response.status === 401) return loseManager()
+  if (!response.ok) return flash(data.error || 'The person was not added.')
+  flash('Added.')
+  mounted = ''
+  render()
+}
+
+async function savePersonRole(card) {
+  const response = await fetch('/api/people', {
+    method: 'PATCH',
+    headers: authHeaders(true),
+    body: JSON.stringify({ username: card.dataset.person, role: card.querySelector('[data-role]').value }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) return flash(data.error || 'The permission was not saved.')
+  flash('Saved.')
+}
+
+async function savePersonPassword(card) {
+  const response = await fetch('/api/people', {
+    method: 'PATCH',
+    headers: authHeaders(true),
+    body: JSON.stringify({ username: card.dataset.person, password: card.querySelector('[data-password]').value }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) return flash(data.error || 'The password was not changed.')
+  card.querySelector('[data-password]').value = ''
+  flash('Password set.')
 }
 
 function fillRooms() {

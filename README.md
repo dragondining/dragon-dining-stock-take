@@ -30,7 +30,8 @@ On the public site, people sign in with a username and password stored by Supaba
 2. Open **Authentication → Users → Add user**.
 3. Enter an email such as `manager@dragondining.local`, a password, and turn on **Auto Confirm**.
 4. That person signs in with username `manager` and the password you chose.
-5. On Vercel, add `SUPABASE_URL` (the project URL, like `https://xxxx.supabase.co`) and `SUPABASE_ANON_KEY` (Project Settings → API → anon public key). Redeploy.
+5. On Vercel, add `SUPABASE_URL` (Project Settings → API → Project URL), `SUPABASE_ANON_KEY` (anon public key), and `SUPABASE_SERVICE_ROLE_KEY` (service_role secret). The service role key stays on the server. Redeploy.
+6. Sign in as `manager`, open Manager → People, and add everyone else there. Staff can count and add an item when a barcode is unknown. Managers can also edit the catalog, import, finish a stock take, and change who is staff or manager.
 
 The local `npm start` server on this PC still uses the manager PIN **1234**.
 

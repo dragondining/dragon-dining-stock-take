@@ -8,7 +8,7 @@ import { csvFromSnapshot, filenameForLabel } from './src/csv.js'
 import { getSetting, openDatabase, prepareDatabase } from './src/db.js'
 import { HttpError } from './src/errors.js'
 import { one } from './src/query.js'
-import { loginWithUsername, profileFromToken, supabaseAuthEnabled } from './src/supabase-auth.js'
+import { createPerson, listPeople, loginWithUsername, profileFromToken, setPersonPassword, setPersonRole, supabaseAuthEnabled } from './src/supabase-auth.js'
 import {
   abandonCounts,
   addBarcode,
@@ -191,9 +191,31 @@ export async function route(db, lock, req, res) {
     return
   }
   if (req.method === 'POST' && pathname === '/api/products') {
-    await requireManager(db, req)
+    if (supabaseAuthEnabled()) await requireUser(db, req)
+    else await requireManager(db, req)
     const body = await readJson(req)
     sendJson(res, 200, { product: await createProduct(db, body) })
+    return
+  }
+  if (req.method === 'GET' && pathname === '/api/people') {
+    await requireManager(db, req)
+    if (!supabaseAuthEnabled()) throw new HttpError(400, 'People are managed here only on the public site.')
+    sendJson(res, 200, { people: await listPeople(db) })
+    return
+  }
+  if (req.method === 'POST' && pathname === '/api/people') {
+    await requireManager(db, req)
+    if (!supabaseAuthEnabled()) throw new HttpError(400, 'People are managed here only on the public site.')
+    const body = await readJson(req)
+    sendJson(res, 200, { person: await createPerson(db, body) })
+    return
+  }
+  if (req.method === 'PATCH' && pathname === '/api/people') {
+    await requireManager(db, req)
+    if (!supabaseAuthEnabled()) throw new HttpError(400, 'People are managed here only on the public site.')
+    const body = await readJson(req)
+    if (body.password) sendJson(res, 200, await setPersonPassword(db, body))
+    else sendJson(res, 200, await setPersonRole(db, body))
     return
   }
   if (req.method === 'PATCH' && pathname.startsWith('/api/products/')) {
