@@ -318,6 +318,11 @@ async function requireManager(db, req) {
 }
 
 function readBody(req, limit) {
+  if (Buffer.isBuffer(req.body)) return Promise.resolve(req.body)
+  if (req.rawBody) return Promise.resolve(Buffer.from(req.rawBody))
+  if (typeof req.body === 'string') return Promise.resolve(Buffer.from(req.body))
+  if (req.body && typeof req.body === 'object') return Promise.resolve(Buffer.from(JSON.stringify(req.body)))
+  if (req.readableEnded) return Promise.resolve(Buffer.alloc(0))
   return new Promise((resolve, reject) => {
     const chunks = []
     let size = 0
@@ -336,6 +341,7 @@ function readBody(req, limit) {
 }
 
 async function readJson(req) {
+  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) return req.body
   const buffer = await readBody(req, 2_000_000)
   if (!buffer.length) return {}
   try {
