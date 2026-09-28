@@ -1411,8 +1411,14 @@ async function refresh() {
     const response = await fetch('/api/state')
     const data = await response.json().catch(() => ({}))
     if (response.status === 401 && ui.authMode === 'supabase') {
+      const message = data.error || 'Sign in did not stick. Try again.'
       clearToken()
       renderLogin()
+      const error = document.getElementById('login-error')
+      if (error) {
+        error.hidden = false
+        error.textContent = message
+      }
       return
     }
     if (!response.ok) {
@@ -1441,30 +1447,66 @@ function renderLogin() {
     <div class="wrap">
       <h1>Sign in</h1>
       <p class="help">Use your Dragon Dining username and password.</p>
-      <form id="login-form" class="form-grid">
+      <form id="login-form" class="form-grid" action="javascript:void(0)">
         <label class="field" for="login-user">Username</label>
         <input id="login-user" type="text" autocomplete="username" autocapitalize="off">
         <label class="field" for="login-pass">Password</label>
         <input id="login-pass" type="password" autocomplete="current-password">
-        <button class="primary" type="submit">Sign in</button>
+        <p id="login-error" class="help" hidden></p>
+        <button id="login-submit" class="primary" type="button">Sign in</button>
       </form>
     </div>`
-  document.getElementById('login-form').addEventListener('submit', submitLogin)
+  document.getElementById('login-form').addEventListener('submit', (event) => {
+    event.preventDefault()
+    submitLogin()
+  })
+  document.getElementById('login-submit').addEventListener('click', () => submitLogin())
+  document.getElementById('login-pass').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      submitLogin()
+    }
+  })
   document.getElementById('login-user').focus()
 }
 
-async function submitLogin(event) {
-  event.preventDefault()
-  const response = await fetch('/api/login', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      username: document.getElementById('login-user').value,
-      password: document.getElementById('login-pass').value,
-    }),
-  })
+async function submitLogin() {
+  const error = document.getElementById('login-error')
+  const button = document.getElementById('login-submit')
+  if (error) {
+    error.hidden = true
+    error.textContent = ''
+  }
+  if (button) button.disabled = true
+  let response
+  try {
+    response = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        username: document.getElementById('login-user').value,
+        password: document.getElementById('login-pass').value,
+      }),
+    })
+  } catch {
+    if (button) button.disabled = false
+    if (error) {
+      error.hidden = false
+      error.textContent = 'The sign-in request did not reach the server.'
+    }
+    return
+  }
   const data = await response.json().catch(() => ({}))
-  if (!response.ok) return flash(data.error || 'That username or password is not right.')
+  if (!response.ok) {
+    if (button) button.disabled = false
+    const message = data.error || 'That username or password is not right.'
+    if (error) {
+      error.hidden = false
+      error.textContent = message
+    }
+    flash(message)
+    return
+  }
   ui.token = data.token
   ui.role = data.role
   ui.username = data.username

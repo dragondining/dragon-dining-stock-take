@@ -56,9 +56,10 @@ export async function profileFromToken(db, token) {
     headers: { ...authHeaders(), authorization: `Bearer ${token}` },
   })
   if (!response.ok) return null
-  const user = await response.json().catch(() => null)
-  if (!user?.id) return null
-  return one(db, 'select username, role from profiles where id = ?', [user.id])
+  const body = await response.json().catch(() => null)
+  const id = body?.id || body?.user?.id
+  if (!id) return null
+  return one(db, 'select username, role from profiles where id = ?', [id])
 }
 
 const EMAIL_DOMAIN = 'dragondining.local'

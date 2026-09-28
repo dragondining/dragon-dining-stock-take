@@ -10,7 +10,7 @@ const lock = { fails: 0, until: 0 }
 
 function publicError(error) {
   const message = String(error?.message || 'Something went wrong on this computer.')
-  if (/postgres(ql)?:\/\//i.test(message) || /password/i.test(message)) {
+  if (/postgres(ql)?:\/\//i.test(message)) {
     return 'The database connection was refused. Check SUPABASE_DB_URL, then redeploy.'
   }
   return message
