@@ -904,7 +904,7 @@ async function flushCreates() {
 
 async function flushLinks() {
   for (const job of [...state.pending.filter((item) => item.type === 'link')]) {
-    const response = await fetch('/api/barcodes', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: job.code, product_id: job.product_id }) })
+    const response = await fetch('/api/barcodes', { method: 'POST', headers: authHeaders(true), body: JSON.stringify({ code: job.code, product_id: job.product_id }) })
     const data = await response.json().catch(() => ({}))
     if (!response.ok && response.status !== 409) throw new Error('wait')
     if (response.ok) replaceProduct(data.product)
@@ -935,7 +935,7 @@ async function flushCounts() {
   const counts = state.pending.filter((item) => item.type === 'count' && item.product_id > 0)
   if (!counts.length) return
   const sent = new Map(counts.map((count) => [count.product_id, count.updated_at]))
-  const response = await fetch('/api/counts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ counts }) })
+  const response = await fetch('/api/counts', { method: 'POST', headers: authHeaders(true), body: JSON.stringify({ counts }) })
   if (!response.ok) throw new Error('wait')
   const data = await response.json()
   for (const result of data.results || []) {
@@ -1408,7 +1408,7 @@ function stopCamera() {
 
 async function refresh() {
   try {
-    const response = await fetch('/api/state')
+    const response = await fetch('/api/state', { headers: authHeaders() })
     const data = await response.json().catch(() => ({}))
     if (response.status === 401 && ui.authMode === 'supabase') {
       const message = data.error || 'Sign in did not stick. Try again.'
