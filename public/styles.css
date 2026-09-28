@@ -79,6 +79,17 @@ a { color: var(--red-dark); }
   flex: none;
 }
 .lockup-name { font-weight: 800; font-size: 1.125rem; letter-spacing: -0.03em; }
+.top-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.sign-out {
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+  border-radius: 999px;
+  min-height: 40px;
+  padding: 0 14px;
+  font-weight: 750;
+  font-size: 0.85rem;
+}
 .sync {
   font-weight: 650;
   font-size: 0.75rem;

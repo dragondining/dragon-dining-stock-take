@@ -171,10 +171,30 @@ function mount(route) {
 
 function paint(route) {
   paintNav(route)
+  paintSignOut()
   paintStatus()
   if (route.name === 'home') paintHome()
   else if (route.name === 'room') paintRoom(route)
   else paintManage()
+}
+
+function signOut() {
+  clearToken()
+  mounted = ''
+  if (location.hash !== '#/' && location.hash !== '') location.hash = '#/'
+  if (ui.authMode === 'supabase') renderLogin()
+  else render()
+}
+
+function paintSignOut() {
+  const button = document.getElementById('sign-out')
+  if (!button) return
+  button.hidden = !(ui.authMode === 'supabase' && ui.token)
+}
+
+function onHashChange() {
+  if (ui.authMode === 'supabase' && !ui.token) renderLogin()
+  else render()
 }
 
 function paintNav(route) {
@@ -297,7 +317,7 @@ function manageHtml(route) {
       <a href="#/manage/finish">Finish stock take</a>
       <a href="#/manage/archives">Past stock takes</a>
       ${ui.authMode === 'supabase' ? '' : '<a href="#/manage/pin">Change PIN</a>'}
-      <button id="logout" class="ghost" type="button">${ui.authMode === 'supabase' ? 'Sign out' : 'Lock manager'}</button>
+      ${ui.authMode === 'supabase' ? '' : '<button id="logout" class="ghost" type="button">Lock manager</button>'}
     </div></div>`
 }
 
@@ -1468,6 +1488,7 @@ function renderLogin() {
     }
   })
   document.getElementById('login-user').focus()
+  paintSignOut()
 }
 
 async function submitLogin() {
@@ -1529,9 +1550,16 @@ async function boot() {
   } catch {
     ui.authMode = 'pin'
   }
+  document.getElementById('sign-out')?.addEventListener('click', signOut)
+  window.addEventListener('hashchange', onHashChange)
+  window.addEventListener('online', () => refresh())
+  window.addEventListener('offline', () => {
+    state.online = false
+    paintStatus()
+  })
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {})
   if (ui.authMode === 'supabase' && !ui.token) {
     renderLogin()
-    window.addEventListener('hashchange', () => { if (!ui.token) renderLogin() })
     return
   }
   const cached = await idbGet('catalog')
@@ -1544,13 +1572,6 @@ async function boot() {
   }
   if (Array.isArray(pending)) state.pending = pending
   render()
-  window.addEventListener('hashchange', () => render())
-  window.addEventListener('online', () => refresh())
-  window.addEventListener('offline', () => {
-    state.online = false
-    paintStatus()
-  })
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {})
   await refresh()
 }
 
