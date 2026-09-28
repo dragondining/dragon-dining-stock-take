@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { getSetting, setSetting, withTransaction } from './db.js'
 import { many, one, run } from './query.js'
+import { listVocab } from './vocab.js'
 import { hashPin, pinLooksValid, verifyPin } from './auth.js'
 import { isPlaceholderBarcode } from './catalog.js'
 import { csvFromSnapshot, filenameForLabel, catalogCsv } from './csv.js'
@@ -45,7 +46,8 @@ export async function getState(db) {
     SELECT product_id, counted_room_id, qty, is_exception, updated_at, device_id
     FROM counts
   `)).map((count) => ({ ...count, is_exception: bool(count.is_exception), qty: Number(count.qty) }))
-  return { rooms, products, counts, server_time: new Date().toISOString() }
+  const lists = await listVocab(db).catch(() => ({ suppliers: [], units: [], measures: [] }))
+  return { rooms, products, counts, ...lists, server_time: new Date().toISOString() }
 }
 
 function yenOrNull(value, label) {

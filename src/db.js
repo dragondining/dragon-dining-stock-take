@@ -3,6 +3,7 @@ import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { hashPin, newSalt, newSecret } from './auth.js'
 import { one, run, transaction } from './query.js'
+import { ensureVocab } from './vocab.js'
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS settings (
@@ -78,6 +79,24 @@ CREATE TABLE IF NOT EXISTS import_reports (
   filename TEXT,
   report_json TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS suppliers (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+  active INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS units (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+  active INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS measures (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+  active INTEGER NOT NULL DEFAULT 1
+);
 `
 
 export function openDatabase(dbPath) {
@@ -99,6 +118,7 @@ async function ensurePin(db) {
   if (!await getSetting(db, 'pin_salt')) await setSetting(db, 'pin_salt', newSalt())
   if (!await getSetting(db, 'pin_hash')) await setSetting(db, 'pin_hash', hashPin('1234', await getSetting(db, 'pin_salt')))
   if (!await getSetting(db, 'token_secret')) await setSetting(db, 'token_secret', newSecret())
+  await ensureVocab(db)
 }
 
 export async function getSetting(db, key) {

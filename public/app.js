@@ -10,7 +10,7 @@ import {
   viewCounts,
 } from '/logic.js'
 
-const state = { rooms: [], products: [], counts: [], pending: [], online: true, loaded: false, syncing: false }
+const state = { rooms: [], products: [], counts: [], suppliers: [], units: [], measures: [], pending: [], online: true, loaded: false, syncing: false }
 const ui = {
   tally: true,
   roomQuery: '',
@@ -301,6 +301,7 @@ function manageHtml(route) {
       </div>
     </div>`
   }
+  if (route.section === 'lists') return `${top}<h1>Suppliers and units</h1><div id="lists-admin"></div></div>`
   if (route.section === 'people') return `${top}<h1>People</h1><div id="people-admin"></div></div>`
   if (route.section === 'rooms') return `${top}<h1>Rooms</h1><div id="room-admin"></div></div>`
   if (route.section === 'import') return `${top}<h1>Import catalog</h1><div id="import-admin"></div><div id="report" class="report"></div></div>`
@@ -312,6 +313,7 @@ function manageHtml(route) {
     <div class="menu">
       ${ui.authMode === 'supabase' ? '<a href="#/manage/people">People</a>' : ''}
       <a href="#/manage/products">Items and barcodes</a>
+      <a href="#/manage/lists">Suppliers and units</a>
       <a href="#/manage/rooms">Rooms</a>
       <a href="#/manage/import">Import catalog</a>
       <a href="#/manage/finish">Finish stock take</a>
@@ -415,6 +417,7 @@ function bindManage(route) {
     if (button) saveTableRow(button.closest('tr'))
   })
   if (route.section === 'products' || route.section === 'product') paintProductAdmin()
+  if (route.section === 'lists') fillLists()
   if (route.section === 'people') fillPeople()
   if (route.section === 'rooms') fillRooms()
   if (route.section === 'import') fillImport()
@@ -891,7 +894,7 @@ async function flushQueue() {
     await flushCounts()
     state.online = true
     savePending()
-    await idbSet('catalog', { rooms: state.rooms, products: state.products, counts: state.counts })
+    await idbSet('catalog', { rooms: state.rooms, products: state.products, counts: state.counts, suppliers: state.suppliers, units: state.units, measures: state.measures })
   } catch (error) {
     if (error.message !== 'pin') state.online = false
   } finally {
@@ -988,6 +991,15 @@ function paintManage() {
   el.textContent = `${counted} of ${total} counted · ${formatYen(counted ? value : null)}`
 }
 
+function nameOptions(list, current) {
+  const names = (list || []).filter((entry) => entry.active).map((entry) => entry.name)
+  const chosen = (list || []).find((entry) => current && entry.name.toLowerCase() === String(current).toLowerCase())
+  const value = chosen ? chosen.name : (current || '')
+  if (value && !names.some((name) => name.toLowerCase() === value.toLowerCase())) names.push(value)
+  names.sort((a, b) => a.localeCompare(b))
+  return [`<option value="">—</option>`, ...names.map((name) => `<option value="${esc(name)}" ${name === value ? 'selected' : ''}>${esc(name)}</option>`)].join('')
+}
+
 function filteredProducts() {
   const query = ui.itemQuery.trim().toLowerCase()
   const roomId = ui.productRoom ? Number(ui.productRoom) : null
@@ -1016,12 +1028,12 @@ function paintProductAdmin() {
     <tr data-id="${product.id}">
       <td><input data-field="name" type="text" value="${esc(product.name)}"></td>
       <td><select data-field="room_id">${rooms.replace(`value="${product.room_id}"`, `value="${product.room_id}" selected`)}</select></td>
-      <td><input data-field="source" type="text" value="${esc(product.source || '')}"></td>
-      <td><input data-field="unit" type="text" value="${esc(product.stock_unit || '')}"></td>
+      <td><select data-field="source">${nameOptions(state.suppliers, product.source)}</select></td>
+      <td><select data-field="unit">${nameOptions(state.units, product.stock_unit)}</select></td>
       <td><input data-field="pack_qty" type="text" value="${esc(product.pack_qty ?? '')}"></td>
       <td><input data-field="pack_qty_note" type="text" value="${esc(product.pack_qty_note || '')}"></td>
       <td><input data-field="item_size" type="text" value="${esc(product.item_size || '')}"></td>
-      <td><input data-field="uom" type="text" value="${esc(product.uom || '')}"></td>
+      <td><select data-field="uom">${nameOptions(state.measures, product.uom)}</select></td>
       <td><input data-field="cost" type="text" inputmode="numeric" value="${esc(product.unit_cost_yen ?? '')}"></td>
       <td><input data-field="price" type="text" inputmode="numeric" value="${esc(product.unit_price_yen ?? '')}"></td>
       <td><input data-field="barcodes" type="text" value="${esc((product.barcodes || []).join('; '))}"></td>
@@ -1092,6 +1104,76 @@ function loseManager() {
   clearToken()
   flash('Manager PIN required.')
   location.hash = '#/manage'
+  mounted = ''
+  render()
+}
+
+function fillLists() {
+  const root = document.getElementById('lists-admin')
+  if (!root) return
+  const section = (title, kind, items, path) => `
+    <section>
+      <h2>${title}</h2>
+      <div class="stack">${items.map((entry) => `
+        <div class="card">
+          <div class="row">
+            <input data-name="${entry.id}" data-kind="${kind}" type="text" value="${esc(entry.name)}">
+            <button type="button" data-rename="${entry.id}" data-kind="${kind}" data-path="${path}">Rename</button>
+          </div>
+          <div class="meta">${entry.active ? 'Shown in the item list' : 'Hidden'}</div>
+          <button class="ghost" type="button" data-hide="${entry.id}" data-kind="${kind}" data-path="${path}" data-next="${entry.active ? '0' : '1'}">${entry.active ? 'Hide' : 'Show'}</button>
+        </div>`).join('') || '<p class="empty">None yet. They appear here after items use them, or when you add one.</p>'}
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input id="new-${kind}" type="text" placeholder="Add ${title.toLowerCase()}">
+        <button class="primary" type="button" data-add="${kind}" data-path="${path}">Add</button>
+      </div>
+    </section>`
+  root.innerHTML = [
+    section('Suppliers', 'supplier', state.suppliers, 'suppliers'),
+    section('Stock units', 'unit', state.units, 'units'),
+    section('Measures', 'measure', state.measures, 'measures'),
+  ].join('')
+  root.querySelectorAll('[data-add]').forEach((button) => button.addEventListener('click', () => addVocab(button)))
+  root.querySelectorAll('[data-rename]').forEach((button) => button.addEventListener('click', () => renameVocab(button)))
+  root.querySelectorAll('[data-hide]').forEach((button) => button.addEventListener('click', () => hideVocab(button)))
+}
+
+async function addVocab(button) {
+  const name = document.getElementById(`new-${button.dataset.add}`).value
+  const response = await fetch(`/api/${button.dataset.path}`, { method: 'POST', headers: authHeaders(true), body: JSON.stringify({ name }) })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) return flash(data.error || 'That was not added.')
+  flash('Added.')
+  await refresh()
+  mounted = ''
+  render()
+}
+
+async function renameVocab(button) {
+  const input = document.querySelector(`[data-name="${button.dataset.rename}"][data-kind="${button.dataset.kind}"]`)
+  const response = await fetch(`/api/${button.dataset.path}/${button.dataset.rename}`, {
+    method: 'PATCH',
+    headers: authHeaders(true),
+    body: JSON.stringify({ name: input.value }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) return flash(data.error || 'That was not renamed.')
+  flash('Saved. Items using the old name were updated.')
+  await refresh()
+  mounted = ''
+  render()
+}
+
+async function hideVocab(button) {
+  const response = await fetch(`/api/${button.dataset.path}/${button.dataset.hide}`, {
+    method: 'PATCH',
+    headers: authHeaders(true),
+    body: JSON.stringify({ active: button.dataset.next === '1' }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) return flash(data.error || 'That was not changed.')
+  await refresh()
   mounted = ''
   render()
 }
@@ -1451,9 +1533,12 @@ async function refresh() {
     state.rooms = data.rooms
     state.products = data.products
     state.counts = data.counts
+    state.suppliers = data.suppliers || []
+    state.units = data.units || []
+    state.measures = data.measures || []
     state.online = true
     state.loaded = true
-    await idbSet('catalog', { rooms: state.rooms, products: state.products, counts: state.counts })
+    await idbSet('catalog', { rooms: state.rooms, products: state.products, counts: state.counts, suppliers: state.suppliers, units: state.units, measures: state.measures })
     await flushQueue()
   } catch {
     state.online = false
@@ -1568,6 +1653,9 @@ async function boot() {
     state.rooms = cached.rooms || []
     state.products = cached.products || []
     state.counts = cached.counts || []
+    state.suppliers = cached.suppliers || []
+    state.units = cached.units || []
+    state.measures = cached.measures || []
     state.loaded = true
   }
   if (Array.isArray(pending)) state.pending = pending

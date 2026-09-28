@@ -9,6 +9,7 @@ import { getSetting, openDatabase, prepareDatabase } from './src/db.js'
 import { HttpError } from './src/errors.js'
 import { one } from './src/query.js'
 import { createPerson, listPeople, loginWithUsername, profileFromToken, setPersonPassword, setPersonRole, supabaseAuthEnabled } from './src/supabase-auth.js'
+import { createVocab, updateVocab } from './src/vocab.js'
 import {
   abandonCounts,
   addBarcode,
@@ -223,6 +224,45 @@ export async function route(db, lock, req, res) {
     const id = Number(pathname.slice('/api/products/'.length))
     const body = await readJson(req)
     sendJson(res, 200, { product: await updateProduct(db, id, body) })
+    return
+  }
+  if (req.method === 'POST' && pathname === '/api/suppliers') {
+    await requireManager(db, req)
+    const body = await readJson(req)
+    sendJson(res, 200, { entry: await createVocab(db, 'supplier', body.name) })
+    return
+  }
+  if (req.method === 'PATCH' && pathname.startsWith('/api/suppliers/')) {
+    await requireManager(db, req)
+    const id = Number(pathname.slice('/api/suppliers/'.length))
+    const body = await readJson(req)
+    sendJson(res, 200, { entry: await updateVocab(db, 'supplier', id, body) })
+    return
+  }
+  if (req.method === 'POST' && pathname === '/api/units') {
+    await requireManager(db, req)
+    const body = await readJson(req)
+    sendJson(res, 200, { entry: await createVocab(db, 'unit', body.name) })
+    return
+  }
+  if (req.method === 'PATCH' && pathname.startsWith('/api/units/')) {
+    await requireManager(db, req)
+    const id = Number(pathname.slice('/api/units/'.length))
+    const body = await readJson(req)
+    sendJson(res, 200, { entry: await updateVocab(db, 'unit', id, body) })
+    return
+  }
+  if (req.method === 'POST' && pathname === '/api/measures') {
+    await requireManager(db, req)
+    const body = await readJson(req)
+    sendJson(res, 200, { entry: await createVocab(db, 'measure', body.name) })
+    return
+  }
+  if (req.method === 'PATCH' && pathname.startsWith('/api/measures/')) {
+    await requireManager(db, req)
+    const id = Number(pathname.slice('/api/measures/'.length))
+    const body = await readJson(req)
+    sendJson(res, 200, { entry: await updateVocab(db, 'measure', id, body) })
     return
   }
   if (req.method === 'POST' && pathname === '/api/rooms') {

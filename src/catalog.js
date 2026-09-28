@@ -3,6 +3,7 @@ import XLSX from 'xlsx'
 import { HttpError } from './errors.js'
 import { withTransaction } from './db.js'
 import { many, one, run } from './query.js'
+import { ensureVocab } from './vocab.js'
 
 const ROOM_ORDER = [
   'Cafe',
@@ -667,6 +668,7 @@ export async function importCatalog(db, { buffer, filename, mode = 'merge', conf
     report.product_count = Number((await one(tx, 'SELECT COUNT(*) AS n FROM products')).n)
     report.barcode_count = Number((await one(tx, 'SELECT COUNT(*) AS n FROM barcodes')).n)
     report.room_count = Number((await one(tx, 'SELECT COUNT(*) AS n FROM rooms')).n)
+    await ensureVocab(tx)
     await run(tx, 'INSERT INTO import_reports (created_at, mode, filename, report_json) VALUES (?, ?, ?, ?)', [
       now,
       mode,
