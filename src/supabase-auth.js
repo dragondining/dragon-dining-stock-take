@@ -1,3 +1,4 @@
+import { createPublicKey, verify } from 'node:crypto'
 import { many, one, run } from './query.js'
 import { HttpError } from './errors.js'
 
@@ -50,14 +51,51 @@ export async function loginWithUsername(db, username, password) {
   }
 }
 
+let jwksCache = { at: 0, keys: [] }
+
+function jsonPart(part) {
+  return JSON.parse(Buffer.from(part, 'base64url').toString('utf8'))
+}
+
+async function jwkFor(kid) {
+  if (Date.now() - jwksCache.at > 60 * 60 * 1000 || !jwksCache.keys.length) {
+    const response = await fetch(`${authBase()}/auth/v1/.well-known/jwks.json`)
+    if (!response.ok) return null
+    const body = await response.json()
+    jwksCache = { at: Date.now(), keys: body.keys || [] }
+  }
+  return jwksCache.keys.find((key) => key.kid === kid) || null
+}
+
+export async function subjectFromToken(token) {
+  const parts = String(token || '').split('.')
+  if (parts.length !== 3) return null
+  let header
+  let payload
+  try {
+    header = jsonPart(parts[0])
+    payload = jsonPart(parts[1])
+  } catch {
+    return null
+  }
+  if (header.alg !== 'ES256' || !payload.sub) return null
+  if (payload.exp && payload.exp * 1000 < Date.now()) return null
+  const issuer = `${authBase()}/auth/v1`
+  if (payload.iss !== issuer) return null
+  const jwk = await jwkFor(header.kid)
+  if (!jwk) return null
+  const key = createPublicKey({ key: jwk, format: 'jwk' })
+  const valid = verify(
+    'sha256',
+    Buffer.from(`${parts[0]}.${parts[1]}`),
+    { key, dsaEncoding: 'ieee-p1363' },
+    Buffer.from(parts[2], 'base64url'),
+  )
+  return valid ? payload.sub : null
+}
+
 export async function profileFromToken(db, token) {
-  if (!token) return null
-  const response = await fetch(`${authBase()}/auth/v1/user`, {
-    headers: { ...authHeaders(), authorization: `Bearer ${token}` },
-  })
-  if (!response.ok) return null
-  const body = await response.json().catch(() => null)
-  const id = body?.id || body?.user?.id
+  const id = await subjectFromToken(token)
   if (!id) return null
   return one(db, 'select username, role from profiles where id = ?', [id])
 }
