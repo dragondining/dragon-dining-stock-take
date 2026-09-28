@@ -1,8 +1,16 @@
 import { many, one, run } from './query.js'
 import { HttpError } from './errors.js'
 
+function publishableKey() {
+  return process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY
+}
+
+function secretKey() {
+  return process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+}
+
 export function supabaseAuthEnabled() {
-  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY)
+  return Boolean(process.env.SUPABASE_URL && publishableKey())
 }
 
 function authBase() {
@@ -11,7 +19,7 @@ function authBase() {
 
 function authHeaders() {
   return {
-    apikey: process.env.SUPABASE_ANON_KEY,
+    apikey: publishableKey(),
     'content-type': 'application/json',
   }
 }
@@ -56,8 +64,8 @@ export async function profileFromToken(db, token) {
 const EMAIL_DOMAIN = 'dragondining.local'
 
 function serviceKey() {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!key) throw new HttpError(400, 'People management needs SUPABASE_SERVICE_ROLE_KEY on the server.')
+  const key = secretKey()
+  if (!key) throw new HttpError(400, 'People management needs SUPABASE_SECRET_KEY on the server.')
   return key
 }
 
