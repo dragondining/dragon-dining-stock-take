@@ -40,6 +40,7 @@ const HEADER_MAP = {
   source: 'source',
   name: 'name',
   'item name': 'name',
+  'product name': 'name',
   'stock unit': 'stock_unit',
   unit: 'stock_unit',
   'pack qty': 'pack_qty',
@@ -173,7 +174,7 @@ function findHeaderIndex(rows) {
   const limit = Math.min(rows.length, 15)
   for (let index = 0; index < limit; index += 1) {
     const cells = (rows[index] || []).map(normHeader)
-    if (cells.includes('location') && (cells.includes('name') || cells.includes('item name'))) return index
+    if (cells.includes('location') && (cells.includes('name') || cells.includes('item name') || cells.includes('product name'))) return index
   }
   return -1
 }
