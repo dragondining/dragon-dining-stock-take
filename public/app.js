@@ -301,7 +301,8 @@ function manageHtml(route) {
       </div>
     </div>`
   }
-  if (route.section === 'lists') return `${top}<h1>Suppliers and units</h1><div id="lists-admin"></div></div>`
+  const vocab = vocabPage(route.section)
+  if (vocab) return `${top}<h1>${esc(vocab.title)}</h1><div id="lists-admin"></div></div>`
   if (route.section === 'people') return `${top}<h1>People</h1><div id="people-admin"></div></div>`
   if (route.section === 'rooms') return `${top}<h1>Rooms</h1><div id="room-admin"></div></div>`
   if (route.section === 'import') return `${top}<h1>Import catalog</h1><div id="import-admin"></div><div id="report" class="report"></div></div>`
@@ -313,7 +314,9 @@ function manageHtml(route) {
     <div class="menu">
       ${ui.authMode === 'supabase' ? '<a href="#/manage/people">People</a>' : ''}
       <a href="#/manage/products">Items and barcodes</a>
-      <a href="#/manage/lists">Suppliers and units</a>
+      <a href="#/manage/suppliers">Suppliers</a>
+      <a href="#/manage/units">Stock units</a>
+      <a href="#/manage/measures">Measures</a>
       <a href="#/manage/rooms">Rooms</a>
       <a href="#/manage/import">Import catalog</a>
       <a href="#/manage/finish">Finish stock take</a>
@@ -417,7 +420,7 @@ function bindManage(route) {
     if (button) saveTableRow(button.closest('tr'))
   })
   if (route.section === 'products' || route.section === 'product') paintProductAdmin()
-  if (route.section === 'lists') fillLists()
+  if (vocabPage(route.section)) fillLists(route.section)
   if (route.section === 'people') fillPeople()
   if (route.section === 'rooms') fillRooms()
   if (route.section === 'import') fillImport()
@@ -1108,32 +1111,33 @@ function loseManager() {
   render()
 }
 
-function fillLists() {
+function vocabPage(section) {
+  if (section === 'suppliers') return { title: 'Suppliers', kind: 'supplier', items: state.suppliers, path: 'suppliers' }
+  if (section === 'units') return { title: 'Stock units', kind: 'unit', items: state.units, path: 'units' }
+  if (section === 'measures') return { title: 'Measures', kind: 'measure', items: state.measures, path: 'measures' }
+  return null
+}
+
+function fillLists(section) {
   const root = document.getElementById('lists-admin')
-  if (!root) return
-  const section = (title, kind, items, path) => `
-    <section>
-      <h2>${title}</h2>
-      <div class="stack">${items.map((entry) => `
-        <div class="card">
-          <div class="row">
-            <input data-name="${entry.id}" data-kind="${kind}" type="text" value="${esc(entry.name)}">
-            <button type="button" data-rename="${entry.id}" data-kind="${kind}" data-path="${path}">Rename</button>
-          </div>
-          <div class="meta">${entry.active ? 'Shown in the item list' : 'Hidden'}</div>
-          <button class="ghost" type="button" data-hide="${entry.id}" data-kind="${kind}" data-path="${path}" data-next="${entry.active ? '0' : '1'}">${entry.active ? 'Hide' : 'Show'}</button>
-        </div>`).join('') || '<p class="empty">None yet. They appear here after items use them, or when you add one.</p>'}
-      </div>
-      <div class="row" style="margin-top:8px">
-        <input id="new-${kind}" type="text" placeholder="Add ${title.toLowerCase()}">
-        <button class="primary" type="button" data-add="${kind}" data-path="${path}">Add</button>
-      </div>
-    </section>`
-  root.innerHTML = [
-    section('Suppliers', 'supplier', state.suppliers, 'suppliers'),
-    section('Stock units', 'unit', state.units, 'units'),
-    section('Measures', 'measure', state.measures, 'measures'),
-  ].join('')
+  const page = vocabPage(section)
+  if (!root || !page) return
+  const { title, kind, items, path } = page
+  root.innerHTML = `
+    <div class="stack">${items.map((entry) => `
+      <div class="card">
+        <div class="row">
+          <input data-name="${entry.id}" data-kind="${kind}" type="text" value="${esc(entry.name)}">
+          <button type="button" data-rename="${entry.id}" data-kind="${kind}" data-path="${path}">Rename</button>
+        </div>
+        <div class="meta">${entry.active ? 'Shown in the item list' : 'Hidden'}</div>
+        <button class="ghost" type="button" data-hide="${entry.id}" data-kind="${kind}" data-path="${path}" data-next="${entry.active ? '0' : '1'}">${entry.active ? 'Hide' : 'Show'}</button>
+      </div>`).join('') || '<p class="empty">None yet. They appear here after items use them, or when you add one.</p>'}
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input id="new-${kind}" type="text" placeholder="Add ${esc(title.toLowerCase())}">
+      <button class="primary" type="button" data-add="${kind}" data-path="${path}">Add</button>
+    </div>`
   root.querySelectorAll('[data-add]').forEach((button) => button.addEventListener('click', () => addVocab(button)))
   root.querySelectorAll('[data-rename]').forEach((button) => button.addEventListener('click', () => renameVocab(button)))
   root.querySelectorAll('[data-hide]').forEach((button) => button.addEventListener('click', () => hideVocab(button)))
