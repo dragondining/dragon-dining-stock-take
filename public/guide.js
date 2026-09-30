@@ -11,7 +11,7 @@ export function guideHtml() {
       <li>Leave <strong>Tally on</strong>. Each scan adds one. The button starts on each time the app is opened.</li>
       <li>Scan the barcode. The quantity is saved on the item’s own room, and the strip shows that room.</li>
       <li>For an empty shelf, turn <strong>Tally off</strong>, tap the item, and enter <strong>0</strong>, or leave it uncounted. An item nobody counted is treated as zero when the manager closes the month.</li>
-      <li>Home still shows those items as not counted, so the rooms make it clear what has been walked. Enter a number when you have checked the shelf.</li>
+      <li>Home still shows those items as not counted, so the rooms make it clear what has been completed. Enter a number when you have checked the shelf.</li>
       <li>Watch the top of the screen. <strong>Waiting to sync</strong> means this device still holds counts. <strong>All counts saved</strong> means they are on the server. Check each phone, tablet, and computer.</li>
       <li>Home shows “X of X counted” for the whole kitchen, and each room has its own bar. Yen stays off these screens.</li>
     </ol>
@@ -74,7 +74,7 @@ export function faqHtml() {
     <p><strong>Who can start the next month?</strong> Only a manager. Finish stock take asks: “This will reset the counts to zero. Are you sure?” Staff cannot close the count.</p>
     <p><strong>How does a new month start?</strong> A manager opens Finish stock take, checks the month name, and confirms the warning. The app downloads the CSV, stores the month under Past stock takes, and clears the quantities. The next count starts from zero.</p>
     <p><strong>Where is last month’s file?</strong> Manager → Past stock takes → Download CSV. Also keep the file that downloaded at Finish.</p>
-    <p><strong>What if nobody counted an item?</strong> It is saved as quantity 0. During the count it still shows under Still to count, so the team can see what has not been walked.</p>
+    <p><strong>What if nobody counted an item?</strong> It is saved as quantity 0. During the count it still shows under Still to count, so the team can see what has not been completed.</p>
     <p><strong>What does the total mean?</strong> It is the yen value of items that have a cost. An item with no cost is in the file with a blank value and is left out of the total. An item nobody counted is quantity 0, so it adds nothing to the total.</p>
     <p><strong>Can two months share one file?</strong> Each Finish writes one archive. Use the month name once. A second close in the same month needs a different name, such as September 2026 recount.</p>
     <p><strong>A device says Waiting to sync.</strong> Those counts are still on that phone, tablet, or computer. Wait until every device says All counts saved before the manager finishes the month.</p>

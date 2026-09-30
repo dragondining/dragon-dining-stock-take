@@ -15,13 +15,15 @@
 <body>
   <div id="flash" role="status" hidden></div>
   <header class="topbar">
-    <a class="lockup" href="#/">
+    <a class="lockup" href="#/" aria-label="Dragon Dining">
       <span class="mark" aria-hidden="true">DD</span>
       <span class="lockup-name">Dragon Dining</span>
     </a>
     <div class="top-actions">
-      <button id="sign-out" class="sign-out" type="button" hidden>Sign out</button>
       <div class="sync" data-sync aria-live="polite"></div>
+      <button id="sign-out" class="sign-out" type="button" hidden>Sign out</button>
+      <a id="nav-guide" class="header-btn" href="#/guide">Guide</a>
+      <a id="nav-faq" class="header-btn" href="#/faq">FAQ</a>
     </div>
   </header>
   <div id="app"></div>

@@ -198,13 +198,17 @@ function paintSignOut() {
 }
 
 function onHashChange() {
-  if (ui.authMode === 'supabase' && !ui.token) renderLogin()
+  const route = parseHash()
+  const help = route.name === 'guide' || route.name === 'faq'
+  if (ui.authMode === 'supabase' && !ui.token && !help) renderLogin()
   else render()
 }
 
 function paintNav(route) {
   document.getElementById('nav-home')?.classList.toggle('on', route.name === 'home')
   document.getElementById('nav-manager')?.classList.toggle('on', route.name === 'manage')
+  document.getElementById('nav-guide')?.classList.toggle('on', route.name === 'guide')
+  document.getElementById('nav-faq')?.classList.toggle('on', route.name === 'faq')
   const back = document.getElementById('nav-back')
   if (!back) return
   if (route.name === 'room') back.setAttribute('href', '#/')
@@ -237,7 +241,6 @@ function homeHtml() {
       <div id="banner-slot"></div>
       <h1>Rooms</h1>
       <p class="summary" id="home-summary"></p>
-      <p class="help"><a href="#/guide">Guide</a> · <a href="#/faq">FAQ</a></p>
       <label class="field" for="room-search">Find a room</label>
       <input id="room-search" type="search" placeholder="Find a room" autocomplete="off">
       <div class="rooms" id="room-list" style="margin-top:12px"></div>
@@ -279,7 +282,7 @@ function manageHtml(route) {
   const sync = `<div class="sync" data-sync aria-live="polite"></div>`
   const top = `<div class="wrap"><div class="top"><div class="brand">Manager</div>${sync}</div>`
   if (ui.authMode === 'supabase' && ui.role !== 'manager') {
-    return `${top}<h1>Manager</h1><p class="help">This account cannot open manager tools.</p><p class="help"><a href="#/guide">Guide</a> · <a href="#/faq">FAQ</a></p></div>`
+    return `${top}<h1>Manager</h1><p class="help">This account cannot open manager tools.</p></div>`
   }
   if (ui.authMode !== 'supabase' && !ui.token) return `${top}<h1>Manager</h1><p class="help">Enter the manager PIN.</p><div id="pin-mount"></div></div>`
   if (route.section === 'products' || route.section === 'product') {
@@ -327,8 +330,6 @@ function manageHtml(route) {
       <a href="#/manage/import">Import catalog</a>
       <a href="#/manage/finish">Finish stock take</a>
       <a href="#/manage/archives">Past stock takes</a>
-      <a href="#/guide">Guide</a>
-      <a href="#/faq">FAQ</a>
       ${ui.authMode === 'supabase' ? '' : '<a href="#/manage/pin">Change PIN</a>'}
       ${ui.authMode === 'supabase' ? '' : '<button id="logout" class="ghost" type="button">Lock manager</button>'}
     </div></div>`
@@ -1651,7 +1652,11 @@ async function boot() {
   })
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {})
   const hosted = location.hostname !== '127.0.0.1' && location.hostname !== 'localhost'
-  if (hosted && !ui.token) {
+  const helpOpen = () => {
+    const name = parseHash().name
+    return name === 'guide' || name === 'faq'
+  }
+  if (hosted && !ui.token && !helpOpen()) {
     ui.authMode = 'supabase'
     renderLogin()
   }
@@ -1662,7 +1667,8 @@ async function boot() {
     ui.authMode = hosted ? 'supabase' : 'pin'
   }
   if (ui.authMode === 'supabase' && !ui.token) {
-    if (mounted !== 'login') renderLogin()
+    if (helpOpen()) render()
+    else if (mounted !== 'login') renderLogin()
     return
   }
   if (mounted === 'login') mounted = ''
