@@ -156,6 +156,7 @@ test('stock take acceptance', async () => {
     assert.match(finished.data.csv, /PG Tips/)
     assert.match(finished.data.csv, /Cafe,Amazon,PG Tips,Box,1,20,pcs,2,500,1000,/)
     assert.match(finished.data.csv, /TOTAL/)
+    assert.equal(finished.data.csv.trim().split(/\r?\n/).length, 500)
     const afterFinish = await (await fetch(`${app.url}/api/state`)).json()
     assert.equal(afterFinish.counts.length, 0)
     assert.equal(afterFinish.products.length, 498)

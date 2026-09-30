@@ -9,6 +9,7 @@ import {
   tallyQty,
   viewCounts,
 } from '/logic.js'
+import { faqHtml, guideHtml } from '/guide.js'
 
 const state = { rooms: [], products: [], counts: [], suppliers: [], units: [], measures: [], pending: [], online: true, loaded: false, syncing: false }
 const ui = {
@@ -46,6 +47,8 @@ function deviceId() {
 function parseHash() {
   const parts = (location.hash.replace(/^#/, '') || '/').split('/').filter(Boolean)
   if (parts[0] === 'room' && parts[1]) return { name: 'room', roomId: Number(parts[1]) }
+  if (parts[0] === 'guide') return { name: 'guide' }
+  if (parts[0] === 'faq') return { name: 'faq' }
   if (parts[0] === 'manage') return { name: 'manage', section: parts[1] || 'home', id: parts[2] ? Number(parts[2]) : null }
   return { name: 'home' }
 }
@@ -165,6 +168,8 @@ function mount(route) {
   const app = document.getElementById('app')
   if (route.name === 'home') app.innerHTML = homeHtml()
   else if (route.name === 'room') app.innerHTML = roomHtml(route)
+  else if (route.name === 'guide') app.innerHTML = `<div class="wrap doc"><h1>Guide</h1><p class="help"><a href="#/faq">FAQ</a></p>${guideHtml()}</div>`
+  else if (route.name === 'faq') app.innerHTML = `<div class="wrap doc"><h1>FAQ</h1><p class="help"><a href="#/guide">Guide</a></p>${faqHtml()}</div>`
   else app.innerHTML = manageHtml(route)
   bind(route)
 }
@@ -175,7 +180,7 @@ function paint(route) {
   paintStatus()
   if (route.name === 'home') paintHome()
   else if (route.name === 'room') paintRoom(route)
-  else paintManage()
+  else if (route.name === 'manage') paintManage()
 }
 
 function signOut() {
@@ -232,6 +237,7 @@ function homeHtml() {
       <div id="banner-slot"></div>
       <h1>Rooms</h1>
       <p class="summary" id="home-summary"></p>
+      <p class="help"><a href="#/guide">Guide</a> · <a href="#/faq">FAQ</a></p>
       <label class="field" for="room-search">Find a room</label>
       <input id="room-search" type="search" placeholder="Find a room" autocomplete="off">
       <div class="rooms" id="room-list" style="margin-top:12px"></div>
@@ -273,7 +279,7 @@ function manageHtml(route) {
   const sync = `<div class="sync" data-sync aria-live="polite"></div>`
   const top = `<div class="wrap"><div class="top"><div class="brand">Manager</div>${sync}</div>`
   if (ui.authMode === 'supabase' && ui.role !== 'manager') {
-    return `${top}<h1>Manager</h1><p class="help">This account cannot open manager tools.</p></div>`
+    return `${top}<h1>Manager</h1><p class="help">This account cannot open manager tools.</p><p class="help"><a href="#/guide">Guide</a> · <a href="#/faq">FAQ</a></p></div>`
   }
   if (ui.authMode !== 'supabase' && !ui.token) return `${top}<h1>Manager</h1><p class="help">Enter the manager PIN.</p><div id="pin-mount"></div></div>`
   if (route.section === 'products' || route.section === 'product') {
@@ -321,6 +327,8 @@ function manageHtml(route) {
       <a href="#/manage/import">Import catalog</a>
       <a href="#/manage/finish">Finish stock take</a>
       <a href="#/manage/archives">Past stock takes</a>
+      <a href="#/guide">Guide</a>
+      <a href="#/faq">FAQ</a>
       ${ui.authMode === 'supabase' ? '' : '<a href="#/manage/pin">Change PIN</a>'}
       ${ui.authMode === 'supabase' ? '' : '<button id="logout" class="ghost" type="button">Lock manager</button>'}
     </div></div>`
@@ -1388,11 +1396,11 @@ function fillFinish() {
   root.innerHTML = `
     <label class="field" for="finish-label">Name this stock take</label>
     <input id="finish-label" type="text" value="${esc(defaultLabel())}">
-    <p class="help">This freezes the values, downloads a CSV, and clears the quantities. Items stay in the catalog.</p>
+    <p class="help">This saves every item, writes quantity 0 when nobody counted it, downloads a CSV, and clears the quantities. Items stay in the catalog.</p>
     <button id="ask-finish" class="primary" type="button">Finish stock take</button>
     <div id="finish-confirm" hidden>
-      <p><strong>Finish now?</strong> Quantities go back to uncounted. The archive keeps today's costs.</p>
-      <button id="do-finish" class="danger" type="button">Yes, finish</button>
+      <p><strong>This will reset the counts to zero. Are you sure?</strong></p>
+      <button id="do-finish" class="danger" type="button">Yes, reset the counts</button>
     </div>`
   root.querySelector('#ask-finish').addEventListener('click', () => { document.getElementById('finish-confirm').hidden = false })
   root.querySelector('#do-finish').addEventListener('click', finishTake)

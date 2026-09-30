@@ -35,6 +35,7 @@ const STATIC = {
   '/styles.css': ['public/styles.css', 'text/css; charset=utf-8'],
   '/app.js': ['public/app.js', 'text/javascript; charset=utf-8'],
   '/logic.js': ['shared/logic.js', 'text/javascript; charset=utf-8'],
+  '/guide.js': ['public/guide.js', 'text/javascript; charset=utf-8'],
   '/sw.js': ['public/sw.js', 'text/javascript; charset=utf-8'],
   '/manifest.webmanifest': ['public/manifest.webmanifest', 'application/manifest+json'],
   '/icon.svg': ['public/icon.svg', 'image/svg+xml'],

@@ -349,6 +349,11 @@ input:focus, select:focus, button:focus-visible {
 .menu { display: grid; gap: 10px; }
 .form-grid { display: grid; gap: 12px; }
 .help { color: var(--muted); font-size: 0.85rem; }
+.doc h2 { font-size: 1.05rem; margin: 1.3rem 0 0.35rem; letter-spacing: -0.02em; }
+.doc h3 { font-size: 0.95rem; margin: 1rem 0 0.3rem; }
+.doc p, .doc li { line-height: 1.45; }
+.doc ul, .doc ol { margin: 0.35rem 0 0.8rem; padding-left: 1.2rem; }
+.doc li { margin: 0.25rem 0; }
 .back { font-weight: 750; text-decoration: none; }
 .banner {
   width: 100%;

@@ -30,22 +30,25 @@ const COUNT_HEADERS = [
 export function csvFromSnapshot(snapshot) {
   const data = typeof snapshot === 'string' ? JSON.parse(snapshot) : snapshot
   if (Array.isArray(data?.products)) {
-    const counted = data.products.filter((product) => product.counted)
-    const rows = counted.map((product) => [
-      product.room,
-      product.source,
-      product.name,
-      product.stock_unit,
-      product.pack_qty_note || product.pack_qty,
-      product.item_size,
-      product.uom,
-      product.qty,
-      product.unit_cost_yen,
-      product.line_value,
-      product.barcodes,
-      product.note,
-      product.is_exception ? 'yes' : '',
-    ])
+    const rows = data.products.map((product) => {
+      const qty = product.counted ? product.qty : 0
+      const line = product.unit_cost_yen == null ? null : (product.counted ? product.line_value : 0)
+      return [
+        product.room,
+        product.source,
+        product.name,
+        product.stock_unit,
+        product.pack_qty_note || product.pack_qty,
+        product.item_size,
+        product.uom,
+        qty,
+        product.unit_cost_yen,
+        line,
+        product.barcodes,
+        product.note,
+        product.is_exception ? 'yes' : '',
+      ]
+    })
     rows.push(['', '', 'TOTAL', '', '', '', '', '', '', data.total_value, '', '', ''])
     return toCsv(COUNT_HEADERS, rows)
   }
