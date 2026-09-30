@@ -29,7 +29,20 @@ async function rememberUsedNames(db, kind) {
     SELECT DISTINCT ${column} AS name FROM products
     WHERE ${column} IS NOT NULL AND trim(${column}) <> ''
   `)
-  for (const row of rows) await addName(db, kind, row.name, { quiet: true })
+  const wanted = new Map()
+  for (const row of rows) {
+    const name = String(row.name ?? '').trim().replace(/\s+/g, ' ')
+    if (!name) continue
+    const key = name.toLowerCase()
+    if (!wanted.has(key)) wanted.set(key, name)
+  }
+  if (!wanted.size) return
+  const existing = await many(db, `SELECT name FROM ${table}`)
+  for (const row of existing) wanted.delete(String(row.name ?? '').trim().toLowerCase())
+  const missing = [...wanted.values()]
+  if (!missing.length) return
+  const placeholders = missing.map(() => '(?, 1)').join(', ')
+  await run(db, `INSERT INTO ${table} (name, active) VALUES ${placeholders}`, missing)
 }
 
 async function addName(db, kind, raw, options = {}) {

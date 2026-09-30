@@ -345,7 +345,7 @@ function bind(route) {
   }
   document.getElementById('tally')?.addEventListener('click', () => {
     ui.tally = !ui.tally
-    localStorage.setItem('dd.tally', ui.tally ? '1' : '0')
+    sessionStorage.setItem('dd.tally', ui.tally ? '1' : '0')
     paintRoom(parseHash())
     focusScan()
   })
@@ -1629,16 +1629,11 @@ async function submitLogin() {
 }
 
 async function boot() {
-  ui.tally = localStorage.getItem('dd.tally') !== '0'
+  localStorage.removeItem('dd.tally')
+  ui.tally = sessionStorage.getItem('dd.tally') !== '0'
   ui.token = sessionStorage.getItem('dd.token') || ''
   ui.role = sessionStorage.getItem('dd.role') || ''
   ui.username = sessionStorage.getItem('dd.username') || ''
-  try {
-    const mode = await (await fetch('/api/auth/mode')).json()
-    ui.authMode = mode.mode === 'supabase' ? 'supabase' : 'pin'
-  } catch {
-    ui.authMode = 'pin'
-  }
   document.getElementById('sign-out')?.addEventListener('click', signOut)
   window.addEventListener('hashchange', onHashChange)
   window.addEventListener('online', () => refresh())
@@ -1647,10 +1642,22 @@ async function boot() {
     paintStatus()
   })
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {})
-  if (ui.authMode === 'supabase' && !ui.token) {
+  const hosted = location.hostname !== '127.0.0.1' && location.hostname !== 'localhost'
+  if (hosted && !ui.token) {
+    ui.authMode = 'supabase'
     renderLogin()
+  }
+  try {
+    const mode = await (await fetch('/api/auth/mode')).json()
+    ui.authMode = mode.mode === 'supabase' ? 'supabase' : 'pin'
+  } catch {
+    ui.authMode = hosted ? 'supabase' : 'pin'
+  }
+  if (ui.authMode === 'supabase' && !ui.token) {
+    if (mounted !== 'login') renderLogin()
     return
   }
+  if (mounted === 'login') mounted = ''
   const cached = await idbGet('catalog')
   const pending = await idbGet('pending')
   if (cached?.products) {

@@ -16,9 +16,19 @@ function publicError(error) {
   return message
 }
 
+function needsDatabase(req) {
+  const url = new URL(req.url || '/', 'http://localhost')
+  if (req.method === 'GET' && (url.pathname === '/api/auth/mode' || url.pathname === '/api/health')) return false
+  return true
+}
+
 export default async function handler(req, res) {
   try {
     if (!req.url) req.url = '/'
+    if (!needsDatabase(req)) {
+      await route(null, lock, req, res)
+      return
+    }
     const db = openPostgres()
     if (!globalThis.__dragonDiningReady) {
       await prepareDatabase(db)
