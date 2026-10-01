@@ -18,6 +18,7 @@ import {
   changePin,
   createProduct,
   createRoom,
+  deleteProduct,
   exportCatalogCsv,
   finishStockTake,
   getState,
@@ -225,6 +226,14 @@ export async function route(db, lock, req, res) {
     const id = Number(pathname.slice('/api/products/'.length))
     const body = await readJson(req)
     sendJson(res, 200, { product: await updateProduct(db, id, body) })
+    return
+  }
+  if (req.method === 'DELETE' && pathname.startsWith('/api/products/')) {
+    await requireManager(db, req)
+    const id = Number(pathname.slice('/api/products/'.length))
+    if (!Number.isInteger(id)) throw new HttpError(400, 'That item is not in the catalog.')
+    await deleteProduct(db, id)
+    sendJson(res, 200, { ok: true })
     return
   }
   if (req.method === 'POST' && pathname === '/api/suppliers') {

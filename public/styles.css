@@ -162,7 +162,7 @@ a { color: var(--red-dark); }
 .sheet-tools { display: none; }
 #add-item { width: auto; min-height: 48px; margin-top: 0; padding: 0 16px; white-space: nowrap; }
 .table-wrap { overflow-x: auto; background: white; border-radius: 16px; border: 1px solid var(--line); }
-table.sheet { width: 100%; border-collapse: collapse; min-width: 1100px; }
+table.sheet { width: 100%; border-collapse: collapse; min-width: 1200px; }
 table.sheet th, table.sheet td { border-bottom: 1px solid var(--line); padding: 6px; text-align: left; vertical-align: middle; }
 table.sheet th { font-size: 0.75rem; color: var(--muted); font-weight: 650; }
 @media (min-width: 1024px) {
@@ -193,7 +193,9 @@ table.sheet th { font-size: 0.75rem; color: var(--muted); font-weight: 650; }
 table.sheet input, table.sheet select { min-height: 44px; width: 140px; }
 table.sheet input[type="checkbox"] { width: 28px; min-height: 28px; }
 table.sheet input[data-field="name"], table.sheet input[data-field="note"], table.sheet input[data-field="barcodes"] { width: 220px; }
-table.sheet .row-save { min-height: 44px; width: auto; padding: 0 14px; white-space: nowrap; }
+table.sheet .row-actions { display: flex; gap: 6px; align-items: center; }
+table.sheet .row-save,
+table.sheet .row-delete { min-height: 44px; width: auto; margin-top: 0; padding: 0 14px; white-space: nowrap; }
 .top {
   display: flex;
   justify-content: space-between;

@@ -190,6 +190,23 @@ test('stock take acceptance', async () => {
     assert.equal(created.data.product.name, 'Acceptance biscuit')
     assert.equal(created.data.product.unit_cost_yen, 120)
     assert.deepEqual(created.data.product.barcodes, ['BISCUIT1'])
+    const biscuitCount = await postJson(`${app.url}/api/counts`, {
+      counts: [{ product_id: created.data.product.id, counted_room_id: cafe.id, qty: 2, is_exception: 0, updated_at: new Date().toISOString(), device_id: 'test' }],
+    }, token)
+    assert.equal(biscuitCount.status, 200, JSON.stringify(biscuitCount.data))
+    const noDelete = await fetch(`${app.url}/api/products/${created.data.product.id}`, { method: 'DELETE' })
+    assert.equal(noDelete.status, 401)
+    const removed = await fetch(`${app.url}/api/products/${created.data.product.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${token}` } })
+    const removedBody = await removed.json()
+    assert.equal(removed.status, 200, JSON.stringify(removedBody))
+    const afterDelete = await (await fetch(`${app.url}/api/state`)).json()
+    assert.equal(afterDelete.products.some((product) => product.name === 'Acceptance biscuit'), false)
+    assert.equal(afterDelete.products.some((product) => (product.barcodes || []).includes('BISCUIT1')), false)
+    assert.equal(afterDelete.counts.some((count) => count.product_id === created.data.product.id), false)
+    const gone = await fetch(`${app.url}/api/products/${created.data.product.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${token}` } })
+    assert.equal(gone.status, 404)
+    const stillFrozen = await (await fetch(`${app.url}/api/archives/${finished.data.archive.id}.csv`, { headers: { authorization: `Bearer ${token}` } })).text()
+    assert.match(stillFrozen, /Cafe,Amazon,PG Tips,Box,1,20,pcs,2,500,1000,/)
     const denied = await postJson(`${app.url}/api/products`, { name: 'Nope', room_id: cafe.id })
     assert.equal(denied.status, 401)
 

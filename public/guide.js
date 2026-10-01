@@ -59,9 +59,9 @@ export function guideHtml() {
       <li>Change the permission dropdown and tap <strong>Save permission</strong>.</li>
       <li>Type a new password and tap <strong>Set password</strong>. The new password replaces the old one.</li>
     </ul>
-    <p>The app has no delete button. To retire a login, set a new password so the old one stops working, and set the permission to Staff if they should not manage the catalog.</p>
+    <p>People have no delete button. To retire a login, set a new password so the old one stops working, and set the permission to Staff if they should not manage the catalog.</p>
     <h2>Manager: items, lists, and rooms</h2>
-    <p><strong>Items and barcodes.</strong> Edit the row, then <strong>Save</strong>. <strong>Add item</strong> puts a new item on the list. Name and room are required. Supplier, Unit, and UoM are dropdowns. Cost is the yen used for the stock value. A barcode can be left blank. Hide takes an item off the counting lists.</p>
+    <p><strong>Items and barcodes.</strong> Edit the row, then <strong>Save</strong>. <strong>Add item</strong> puts a new item on the list. Name and room are required. Supplier, Unit, and UoM are dropdowns. Cost is the yen used for the stock value. A barcode can be left blank. Hide keeps an item off the counting lists. <strong>Delete</strong> removes the item, its barcode, and this month’s count. Delete is on this list only. A finished month still shows the item as it was when that month was closed.</p>
     <p><strong>Suppliers, Stock units, and Measures</strong> are three menus. Stock unit is what you count, such as Pack, Bottle, or Can. Measure is the size unit, such as g, kg, ml, or L. Add a name, rename it, or hide it. A rename updates items that use the old name. Hide is refused while an item still uses that name.</p>
     <p><strong>Rooms.</strong> Add a room, rename it, or hide it. Hidden rooms leave the Home list.</p>
     <p><strong>Import catalog.</strong> <strong>Merge</strong> adds and updates items from an Excel or CSV file. <strong>Download catalog</strong> saves the current item list, without quantities. <strong>Replace catalog</strong> rebuilds the item list from the file. It asks you to type REPLACE. If a count is open, it also asks you to abandon that count. Abandon deletes the quantities and does not write the monthly CSV. Use Finish stock take to close a month.</p>
@@ -81,6 +81,7 @@ export function faqHtml() {
     <p><strong>Tally is off.</strong> It starts on each time the app is opened. Tap <strong>Tally on</strong> before scanning. Tally off is for typing a quantity.</p>
     <p><strong>I scanned in the wrong room.</strong> The count is still saved, on the room filed for that item. The strip shows that room.</p>
     <p><strong>The barcode is unknown.</strong> Link it to an item already in the list, or create a new item with a name, room, and cost. Staff can do this. Skip for now leaves a banner on Home.</p>
+    <p><strong>How do I remove an item?</strong> A manager opens Items and barcodes and taps <strong>Delete</strong> on that row, then confirms. Hide keeps the item off the counting lists. Delete removes it. Staff cannot delete an item. A finished month is not changed.</p>
     <p><strong>I cannot open Manager.</strong> That login is staff. Staff count and add unknown items. A manager changes the permission under Manager → People.</p>
     <p><strong>How do I add a person?</strong> Manager → People. Enter a username, a password of at least 8 characters, and Staff or Manager. They sign in with that username.</p>
     <p><strong>Someone forgot a password.</strong> A manager opens their card, types a new password, and taps Set password.</p>

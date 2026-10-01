@@ -167,6 +167,17 @@ export async function updateProduct(db, id, input) {
   return getProduct(db, id)
 }
 
+export async function deleteProduct(db, id) {
+  const current = await one(db, 'SELECT id FROM products WHERE id = ?', [id])
+  if (!current) throw new HttpError(404, 'That item is not in the catalog.')
+  await withTransaction(db, async (tx) => {
+    await run(tx, 'DELETE FROM barcodes WHERE product_id = ?', [id])
+    await run(tx, 'DELETE FROM counts WHERE product_id = ?', [id])
+    const info = await run(tx, 'DELETE FROM products WHERE id = ?', [id])
+    if (!info.changes) throw new HttpError(404, 'That item is not in the catalog.')
+  })
+}
+
 function textOrNull(value) {
   if (value == null) return null
   const text = String(value).trim()

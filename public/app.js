@@ -288,7 +288,7 @@ function manageHtml(route) {
     const roomOptions = state.rooms.map((room) => `<option value="${room.id}">${esc(room.name)}</option>`).join('')
     return `<div class="wrap wide"><div class="top"><div class="brand">Manager</div>${sync}</div>
       <h1>Items</h1>
-      <p class="help">Edit a row, then Save. Stock value uses cost. Add item puts a new row on this list.</p>
+      <p class="help">Edit a row, then Save. Stock value uses cost. Add item puts a new row on this list. Hide keeps an item off the counting lists. Delete removes it.</p>
       <div class="row">
         <input id="manage-search" type="search" placeholder="Find an item" autocomplete="off">
         <select id="manage-room"><option value="">All rooms</option>${roomOptions}</select>
@@ -438,6 +438,12 @@ function bindManage(route) {
   document.getElementById('sheet-left')?.addEventListener('click', () => scrollSheet(-1))
   document.getElementById('sheet-right')?.addEventListener('click', () => scrollSheet(1))
   document.getElementById('manage-list')?.addEventListener('click', (event) => {
+    const remove = event.target.closest('[data-delete]')
+    if (remove) {
+      ui.overlay = { type: 'delete-item', productId: Number(remove.dataset.delete) }
+      paintOverlay()
+      return
+    }
     const button = event.target.closest('[data-save]')
     if (button) saveTableRow(button.closest('tr'))
   })
@@ -584,6 +590,7 @@ function overlayBody(overlay) {
   if (overlay.type === 'unknown') return unknownHtml(overlay)
   if (overlay.type === 'create') return createHtml(overlay)
   if (overlay.type === 'add-item') return addItemHtml()
+  if (overlay.type === 'delete-item') return deleteItemHtml(overlay)
   if (overlay.type === 'keypad') return keypadHtml(overlay)
   if (overlay.type === 'pin') return pinHtml()
   return ''
@@ -692,6 +699,38 @@ async function saveAddItem() {
   paintOverlay()
   paintProductAdmin()
   flash('Item added.')
+}
+
+function deleteItemHtml(overlay) {
+  const product = productById(overlay.productId)
+  const name = product ? product.name : 'this item'
+  return `
+    <h2>Delete item</h2>
+    <p>Delete <strong>${esc(name)}</strong>? This removes the item, its barcode, and this month’s count. Past months stay as they were.</p>
+    <button class="danger" type="button" data-act="confirm-delete">Delete item</button>
+    <button class="ghost" type="button" data-act="close">Cancel</button>`
+}
+
+async function deleteItem() {
+  const id = Number(ui.overlay?.productId)
+  if (!id) return
+  const button = document.querySelector('[data-act="confirm-delete"]')
+  if (button) button.disabled = true
+  const response = await fetch(`/api/products/${id}`, { method: 'DELETE', headers: authHeaders() })
+  const data = await response.json().catch(() => ({}))
+  if (response.status === 401) return loseManager()
+  if (!response.ok) {
+    if (button) button.disabled = false
+    return flash(data.error || 'The item was not deleted.')
+  }
+  state.products = state.products.filter((product) => product.id !== id)
+  state.counts = state.counts.filter((count) => count.product_id !== id)
+  state.pending = state.pending.filter((job) => job.product_id !== id)
+  savePending()
+  ui.overlay = null
+  paintOverlay()
+  paintProductAdmin()
+  flash('Item deleted.')
 }
 
 function keypadHtml(overlay) {
@@ -838,6 +877,7 @@ function onOverlayClick(event) {
   }
   if (act === 'save-create') return saveCreate()
   if (act === 'save-add') return saveAddItem()
+  if (act === 'confirm-delete') return deleteItem()
   if (act === 'save-qty') return saveQty()
   if (act === 'clear-count') return clearCount()
   if (act === 'unlock') return unlock()
@@ -1129,7 +1169,7 @@ function paintProductAdmin() {
       <td><input data-field="barcodes" type="text" value="${esc((product.barcodes || []).join('; '))}"></td>
       <td><input data-field="note" type="text" value="${esc(product.note || '')}"></td>
       <td><input data-field="hidden" type="checkbox" ${product.active ? '' : 'checked'}></td>
-      <td class="pin-right"><button class="primary row-save" type="button" data-save="${product.id}">Save</button></td>
+      <td class="pin-right"><span class="row-actions"><button class="primary row-save" type="button" data-save="${product.id}">Save</button><button class="danger row-delete" type="button" data-delete="${product.id}">Delete</button></span></td>
     </tr>`).join('') || '<tr><td colspan="13">No item matches.</td></tr>'
 }
 
