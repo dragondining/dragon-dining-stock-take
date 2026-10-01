@@ -420,16 +420,50 @@ input:focus, select:focus, button:focus-visible {
 .report { display: grid; gap: 10px; margin-top: 16px; }
 .report details { background: white; border-radius: 12px; padding: 10px 12px; border: 1px solid var(--line); }
 .check { display: flex; gap: 10px; align-items: center; font-weight: 700; }
-.camera {
+.camera-frame {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
   width: min(32rem, calc(100% - 32px));
-  bottom: calc(128px + env(safe-area-inset-bottom));
+  height: min(48vh, 440px);
+  min-height: 240px;
+  bottom: calc(72px + env(safe-area-inset-bottom));
   z-index: 16;
-  border-radius: 14px;
+  border-radius: 16px;
+  overflow: hidden;
   background: black;
-  max-height: 220px;
+}
+.camera-frame .camera {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: black;
+}
+.camera-reticle {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 36%;
+  height: 28%;
+  border: 3px solid white;
+  border-radius: 10px;
+  box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+.camera-hint {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  margin: 0;
+  text-align: center;
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 750;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
 }
 
 @media (min-width: 800px) {

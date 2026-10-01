@@ -39,6 +39,27 @@ export function findProductByBarcode(products, code) {
   return products.find((p) => (p.barcodes || []).some((b) => String(b).trim().toUpperCase() === want)) || null
 }
 
+export function gtinCheckDigitOk(code) {
+  const text = String(code ?? '').trim()
+  if (!/^\d{8}$|^\d{12}$|^\d{13}$/.test(text)) return false
+  const digits = text.split('').map(Number)
+  const check = digits.pop()
+  let sum = 0
+  for (let index = 0; index < digits.length; index += 1) {
+    const fromRight = digits.length - 1 - index
+    sum += digits[index] * (fromRight % 2 === 0 ? 3 : 1)
+  }
+  return (10 - (sum % 10)) % 10 === check
+}
+
+// A code already on an item is accepted. Any other 8, 12, or 13 digit value must pass the GS1 check digit.
+export function cameraCodeAcceptable(code, products) {
+  const text = String(code ?? '').trim()
+  if (!text) return false
+  if (findProductByBarcode(products || [], text)) return true
+  return gtinCheckDigitOk(text)
+}
+
 export function classifyScan(products, roomId, code) {
   const product = findProductByBarcode(products, code)
   if (!product) return { status: 'unknown', code: String(code ?? '').trim() }

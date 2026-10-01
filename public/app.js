@@ -1,4 +1,5 @@
 import {
+  cameraCodeAcceptable,
   classifyScan,
   defaultLabel,
   enqueueCount,
@@ -30,6 +31,7 @@ const ui = {
 const PAGE_SIZE = 40
 let mounted = ''
 let cameraStream = null
+let cameraToken = 0
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]))
@@ -274,7 +276,11 @@ function roomHtml(route) {
       <div id="list" class="list"></div>
     </div>
     <div id="strip" class="strip" hidden></div>
-    <video id="camera" class="camera" hidden autoplay playsinline></video>`
+    <div id="camera-frame" class="camera-frame" hidden>
+      <video id="camera" class="camera" autoplay playsinline muted></video>
+      <div class="camera-reticle" aria-hidden="true"></div>
+      <p id="camera-hint" class="camera-hint">Fill the box with the barcode.</p>
+    </div>`
 }
 
 function manageHtml(route) {
@@ -1596,46 +1602,180 @@ function fillPinChange() {
   })
 }
 
+function openDetector() {
+  const sets = [
+    ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39'],
+    ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'],
+    ['ean_13', 'ean_8', 'code_128'],
+  ]
+  for (const formats of sets) {
+    try { return new BarcodeDetector({ formats }) } catch { /* this browser lacks one of those formats */ }
+  }
+  return null
+}
+
+async function openBackCamera() {
+  const tries = [
+    { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 }, focusMode: { ideal: 'continuous' } }, audio: false },
+    { video: { facingMode: 'environment' }, audio: false },
+  ]
+  let lastError
+  for (const constraints of tries) {
+    try { return await navigator.mediaDevices.getUserMedia(constraints) } catch (error) { lastError = error }
+  }
+  throw lastError
+}
+
+async function tuneCamera(track) {
+  if (!track || typeof track.getCapabilities !== 'function') return
+  const caps = track.getCapabilities()
+  const advanced = []
+  if (Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) advanced.push({ focusMode: 'continuous' })
+  if (caps.zoom && typeof caps.zoom.max === 'number') {
+    const target = Math.min(caps.zoom.max, Math.max(caps.zoom.min || 1, 2))
+    if (target > (caps.zoom.min || 1)) advanced.push({ zoom: target })
+  }
+  if (!advanced.length) return
+  try { await track.applyConstraints({ advanced }) } catch { /* keep the picture the phone already opened */ }
+}
+
+function cropCamera(video, canvas) {
+  const sourceWidth = video.videoWidth
+  const sourceHeight = video.videoHeight
+  const viewWidth = video.clientWidth
+  const viewHeight = video.clientHeight
+  if (!sourceWidth || !sourceHeight || !viewWidth || !viewHeight) return false
+  const scale = Math.max(viewWidth / sourceWidth, viewHeight / sourceHeight)
+  const offsetX = (sourceWidth * scale - viewWidth) / 2
+  const offsetY = (sourceHeight * scale - viewHeight) / 2
+  let sx = (viewWidth * 0.08 + offsetX) / scale
+  let sy = (viewHeight * 0.36 + offsetY) / scale
+  let sw = (viewWidth * 0.84) / scale
+  let sh = (viewHeight * 0.28) / scale
+  sx = Math.max(0, Math.min(sx, sourceWidth - 1))
+  sy = Math.max(0, Math.min(sy, sourceHeight - 1))
+  sw = Math.max(1, Math.min(sw, sourceWidth - sx))
+  sh = Math.max(1, Math.min(sh, sourceHeight - sy))
+  const factor = Math.min(1, 960 / sw)
+  canvas.width = Math.max(1, Math.round(sw * factor))
+  canvas.height = Math.max(1, Math.round(sh * factor))
+  canvas.getContext('2d', { willReadFrequently: true }).drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
+  return true
+}
+
+function pickCameraCode(codes, frameWidth) {
+  const rows = []
+  for (const code of codes || []) {
+    const value = String(code.rawValue || '').trim()
+    if (!value || !cameraCodeAcceptable(value, state.products)) continue
+    rows.push({ value, width: code.boundingBox?.width })
+  }
+  const measured = rows.filter((row) => typeof row.width === 'number' && row.width > 0)
+  const pool = measured.length ? measured.filter((row) => row.width >= frameWidth * 0.5) : rows
+  pool.sort((a, b) => (b.width || 0) - (a.width || 0))
+  return pool[0]?.value || ''
+}
+
+function setCameraHint(text) {
+  const hint = document.getElementById('camera-hint')
+  if (hint) hint.textContent = text
+}
+
 async function toggleCamera() {
   if (cameraStream) return stopCamera()
   if (!('BarcodeDetector' in window) || !navigator.mediaDevices) {
     flash('This browser has no camera barcode reader. The scanner still works.')
     return
   }
+  const detector = openDetector()
+  if (!detector) {
+    flash('This browser has no camera barcode reader. The scanner still works.')
+    return
+  }
+  let stream
   try {
-    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    stream = await openBackCamera()
   } catch {
     flash('Camera permission was blocked. The scanner still works.')
     return
   }
   const video = document.getElementById('camera')
-  video.hidden = false
-  video.srcObject = cameraStream
-  const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code', 'itf'] })
-  const loop = async () => {
-    if (!cameraStream) return
-    try {
-      const codes = await detector.detect(video)
-      if (codes[0]?.rawValue) {
-        const value = codes[0].rawValue
-        stopCamera()
-        handleScan(value)
-        return
-      }
-    } catch { /* keep the scanner path working */ }
-    requestAnimationFrame(loop)
+  const frame = document.getElementById('camera-frame')
+  if (!video || !frame) {
+    stream.getTracks().forEach((track) => track.stop())
+    return
   }
-  loop()
+  cameraStream = stream
+  cameraToken += 1
+  const token = cameraToken
+  await tuneCamera(stream.getVideoTracks()[0])
+  if (token !== cameraToken) {
+    stream.getTracks().forEach((track) => track.stop())
+    return
+  }
+  video.srcObject = stream
+  video.muted = true
+  video.playsInline = true
+  frame.hidden = false
+  setCameraHint('Fill the box with the barcode.')
+  const button = document.getElementById('camera-btn')
+  if (button) button.textContent = 'Stop camera'
+  try { await video.play() } catch { /* later frames still try to read */ }
+  const canvas = document.createElement('canvas')
+  let lastValue = ''
+  let hits = 0
+  let scanning = false
+  let lastAt = 0
+  const loop = async (now) => {
+    if (token !== cameraToken || !cameraStream) return
+    if (scanning || now - lastAt < 150) {
+      requestAnimationFrame(loop)
+      return
+    }
+    scanning = true
+    lastAt = now
+    let accepted = ''
+    try {
+      if (video.readyState >= 2 && cropCamera(video, canvas)) {
+        const codes = await detector.detect(canvas)
+        if (token !== cameraToken) return
+        const value = pickCameraCode(codes, canvas.width)
+        if (!value) {
+          lastValue = ''
+          hits = 0
+          setCameraHint('Fill the box with the barcode.')
+        } else if (value === lastValue) {
+          hits += 1
+          if (hits >= 2) accepted = value
+          else setCameraHint('Hold steady')
+        } else {
+          lastValue = value
+          hits = 1
+          setCameraHint('Hold steady')
+        }
+      }
+    } catch { /* keep the camera open and try the next frame */ }
+    scanning = false
+    if (accepted) {
+      stopCamera()
+      handleScan(accepted)
+      return
+    }
+    if (token === cameraToken) requestAnimationFrame(loop)
+  }
+  requestAnimationFrame(loop)
 }
 
 function stopCamera() {
+  cameraToken += 1
   cameraStream?.getTracks().forEach((track) => track.stop())
   cameraStream = null
+  const frame = document.getElementById('camera-frame')
+  if (frame) frame.hidden = true
   const video = document.getElementById('camera')
-  if (video) {
-    video.hidden = true
-    video.srcObject = null
-  }
+  if (video) video.srcObject = null
+  const button = document.getElementById('camera-btn')
+  if (button) button.textContent = 'Use camera'
 }
 
 async function refresh() {

@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { barcodeTokens, parseCost, parsePack } from '../src/catalog.js'
 import { startServer, starterCatalogPath } from '../server.js'
-import { classifyScan, enqueueCount, lineValue, syncLabel, tallyQty, viewCounts } from '../shared/logic.js'
+import { cameraCodeAcceptable, classifyScan, enqueueCount, gtinCheckDigitOk, lineValue, syncLabel, tallyQty, viewCounts } from '../shared/logic.js'
 
 const catalogPath = starterCatalogPath()
 const catalog = fs.readFileSync(catalogPath)
@@ -45,6 +45,17 @@ test('cleanup rules', () => {
   assert.equal(syncLabel(queued.length), 'Waiting to sync')
   assert.equal(viewCounts([], queued)[0].qty, 2)
   assert.equal(syncLabel(0), 'All counts saved')
+  assert.equal(gtinCheckDigitOk('4901577008795'), true)
+  assert.equal(gtinCheckDigitOk('036000291452'), true)
+  assert.equal(gtinCheckDigitOk('96385074'), true)
+  assert.equal(gtinCheckDigitOk('4901577008794'), false)
+  assert.equal(gtinCheckDigitOk('490157'), false)
+  assert.equal(cameraCodeAcceptable('4901577008795', []), true)
+  assert.equal(cameraCodeAcceptable('4901577008794', []), false)
+  assert.equal(cameraCodeAcceptable('01317903', []), false)
+  assert.equal(cameraCodeAcceptable('01317903', [{ barcodes: ['01317903'] }]), true)
+  assert.equal(cameraCodeAcceptable('X000PG7RN7', []), false)
+  assert.equal(cameraCodeAcceptable('x000pg7rn7', [{ barcodes: ['X000PG7RN7'] }]), true)
 })
 
 test('stock take acceptance', async () => {
@@ -226,6 +237,8 @@ test('stock take acceptance', async () => {
     assert.match(client, /Waiting to sync/)
     assert.match(client, /id="nav-home"|nav-home/)
     assert.match(client, /Save/)
+    assert.match(client, /Fill the box with the barcode/)
+    assert.match(client, /Hold steady/)
     const css = await (await fetch(`${app.url}/styles.css`)).text()
     assert.match(css, /min-height: 56px/)
   } finally {
