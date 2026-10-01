@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { hashPin, newSalt, newSecret } from './auth.js'
-import { one, run, transaction } from './query.js'
+import { isPg, one, run, transaction } from './query.js'
 import { ensureVocab } from './vocab.js'
 
 const SCHEMA = `
@@ -31,7 +31,6 @@ CREATE TABLE IF NOT EXISTS products (
   item_size TEXT,
   uom TEXT,
   unit_cost_yen INTEGER,
-  unit_price_yen INTEGER,
   note TEXT,
   active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL,
@@ -110,8 +109,20 @@ export function openDatabase(dbPath) {
 }
 
 export async function prepareDatabase(db) {
+  await dropPriceColumn(db)
   await ensurePin(db)
   return db
+}
+
+async function dropPriceColumn(db) {
+  if (isPg(db)) {
+    await run(db, 'ALTER TABLE products DROP COLUMN IF EXISTS unit_price_yen')
+    return
+  }
+  const columns = db.prepare('PRAGMA table_info(products)').all()
+  if (columns.some((column) => column.name === 'unit_price_yen')) {
+    db.exec('ALTER TABLE products DROP COLUMN unit_price_yen')
+  }
 }
 
 async function ensurePin(db) {

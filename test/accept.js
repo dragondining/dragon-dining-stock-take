@@ -97,7 +97,6 @@ test('stock take acceptance', async () => {
     const unassigned = state.rooms.find((room) => room.name === 'Unassigned')
     assert.equal(tips.room_id, cafe.id)
     assert.equal(tips.unit_cost_yen, 500)
-    assert.equal(tips.unit_price_yen, null)
     const tipsCount = state.counts.find((count) => count.product_id === tips.id)
     assert.equal(tipsCount.qty, 3)
     assert.equal(tipsCount.device_id, 'd089b1')
@@ -188,7 +187,9 @@ test('stock take acceptance', async () => {
     assert.equal(classifyScan(linked.data.product ? [linked.data.product] : [], cafe.id, 'test-code-1').status, 'known')
     const created = await postJson(`${app.url}/api/products`, { name: 'Acceptance biscuit', room_id: cafe.id, unit_cost_yen: 120, barcode: 'BISCUIT1' }, token)
     assert.equal(created.status, 200)
-    assert.equal(created.data.product.unit_price_yen, null)
+    assert.equal(created.data.product.name, 'Acceptance biscuit')
+    assert.equal(created.data.product.unit_cost_yen, 120)
+    assert.deepEqual(created.data.product.barcodes, ['BISCUIT1'])
     const denied = await postJson(`${app.url}/api/products`, { name: 'Nope', room_id: cafe.id })
     assert.equal(denied.status, 401)
 

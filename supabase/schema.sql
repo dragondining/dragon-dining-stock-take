@@ -27,7 +27,6 @@ create table if not exists products (
   item_size text,
   uom text,
   unit_cost_yen integer,
-  unit_price_yen integer,
   note text,
   active integer not null default 1,
   created_at text not null,

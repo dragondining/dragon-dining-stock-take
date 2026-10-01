@@ -26,7 +26,6 @@ function productShape(row, barcodes) {
     item_size: row.item_size,
     uom: row.uom,
     unit_cost_yen: row.unit_cost_yen == null ? null : Number(row.unit_cost_yen),
-    unit_price_yen: row.unit_price_yen == null ? null : Number(row.unit_price_yen),
     note: row.note,
     active: bool(row.active),
     barcodes: barcodes.get(row.id) || [],
@@ -100,9 +99,9 @@ async function insertProduct(db, input, name, roomId) {
   const info = await run(db, `
     INSERT INTO products (
       external_id, import_fingerprint, room_id, source, name, stock_unit,
-      pack_qty, pack_qty_note, item_size, uom, unit_cost_yen, unit_price_yen,
+      pack_qty, pack_qty_note, item_size, uom, unit_cost_yen,
       note, active, created_at, updated_at
-    ) VALUES (NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+    ) VALUES (NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
     RETURNING id
   `, [
     roomId,
@@ -114,7 +113,6 @@ async function insertProduct(db, input, name, roomId) {
     textOrNull(input.item_size),
     textOrNull(input.uom),
     yenOrNull(input.unit_cost_yen, 'Cost'),
-    yenOrNull(input.unit_price_yen, 'Price'),
     textOrNull(input.note),
     now,
     now,
@@ -147,7 +145,6 @@ export async function updateProduct(db, id, input) {
       item_size = ?,
       uom = ?,
       unit_cost_yen = ?,
-      unit_price_yen = ?,
       note = ?,
       active = ?,
       updated_at = ?
@@ -162,7 +159,6 @@ export async function updateProduct(db, id, input) {
     input.item_size === undefined ? current.item_size : textOrNull(input.item_size),
     input.uom === undefined ? current.uom : textOrNull(input.uom),
     input.unit_cost_yen === undefined ? current.unit_cost_yen : yenOrNull(input.unit_cost_yen, 'Cost'),
-    input.unit_price_yen === undefined ? current.unit_price_yen : yenOrNull(input.unit_price_yen, 'Price'),
     input.note === undefined ? current.note : textOrNull(input.note),
     active,
     new Date().toISOString(),
@@ -296,7 +292,6 @@ export async function finishStockTake(db, label) {
         uom: product.uom,
         qty,
         unit_cost_yen: product.unit_cost_yen,
-        unit_price_yen: product.unit_price_yen,
         line_value: line,
         barcodes: (product.barcodes || []).join('; '),
         note: product.note,

@@ -61,7 +61,7 @@ export function guideHtml() {
     </ul>
     <p>The app has no delete button. To retire a login, set a new password so the old one stops working, and set the permission to Staff if they should not manage the catalog.</p>
     <h2>Manager: items, lists, and rooms</h2>
-    <p><strong>Items and barcodes.</strong> Edit the row, then <strong>Save</strong>. Supplier, Unit, and UoM are dropdowns. Cost is the yen used for the stock value. Price is kept separate and is not the stock value. Hide takes an item off the counting lists.</p>
+    <p><strong>Items and barcodes.</strong> Edit the row, then <strong>Save</strong>. <strong>Add item</strong> puts a new item on the list. Name and room are required. Supplier, Unit, and UoM are dropdowns. Cost is the yen used for the stock value. A barcode can be left blank. Hide takes an item off the counting lists.</p>
     <p><strong>Suppliers, Stock units, and Measures</strong> are three menus. Stock unit is what you count, such as Pack, Bottle, or Can. Measure is the size unit, such as g, kg, ml, or L. Add a name, rename it, or hide it. A rename updates items that use the old name. Hide is refused while an item still uses that name.</p>
     <p><strong>Rooms.</strong> Add a room, rename it, or hide it. Hidden rooms leave the Home list.</p>
     <p><strong>Import catalog.</strong> <strong>Merge</strong> adds and updates items from an Excel or CSV file. <strong>Download catalog</strong> saves the current item list, without quantities. <strong>Replace catalog</strong> rebuilds the item list from the file. It asks you to type REPLACE. If a count is open, it also asks you to abandon that count. Abandon deletes the quantities and does not write the monthly CSV. Use Finish stock take to close a month.</p>

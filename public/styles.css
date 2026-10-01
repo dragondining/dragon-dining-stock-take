@@ -160,6 +160,7 @@ a { color: var(--red-dark); }
 .pager { display: flex; gap: 8px; align-items: center; margin: 12px 0; flex-wrap: wrap; }
 .pager button { min-height: 44px; width: auto; padding: 0 14px; }
 .sheet-tools { display: none; }
+#add-item { width: auto; min-height: 48px; margin-top: 0; padding: 0 16px; white-space: nowrap; }
 .table-wrap { overflow-x: auto; background: white; border-radius: 16px; border: 1px solid var(--line); }
 table.sheet { width: 100%; border-collapse: collapse; min-width: 1100px; }
 table.sheet th, table.sheet td { border-bottom: 1px solid var(--line); padding: 6px; text-align: left; vertical-align: middle; }

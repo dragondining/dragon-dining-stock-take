@@ -599,9 +599,9 @@ export async function importCatalog(db, { buffer, filename, mode = 'merge', conf
         const info = await run(tx, `
           INSERT INTO products (
             external_id, import_fingerprint, room_id, source, name, stock_unit,
-            pack_qty, pack_qty_note, item_size, uom, unit_cost_yen, unit_price_yen,
+            pack_qty, pack_qty_note, item_size, uom, unit_cost_yen,
             note, active, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, 1, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
           RETURNING id
         `, [
           product.external_id,

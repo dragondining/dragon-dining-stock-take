@@ -289,10 +289,11 @@ function manageHtml(route) {
     const roomOptions = state.rooms.map((room) => `<option value="${room.id}">${esc(room.name)}</option>`).join('')
     return `<div class="wrap wide"><div class="top"><div class="brand">Manager</div>${sync}</div>
       <h1>Items</h1>
-      <p class="help">Edit a row, then Save. Stock value uses cost. Price is kept separate.</p>
+      <p class="help">Edit a row, then Save. Stock value uses cost. Add item puts a new row on this list.</p>
       <div class="row">
         <input id="manage-search" type="search" placeholder="Find an item" autocomplete="off">
         <select id="manage-room"><option value="">All rooms</option>${roomOptions}</select>
+        <button id="add-item" class="primary" type="button">Add item</button>
       </div>
       <div class="pager">
         <button id="page-prev" class="ghost" type="button">Previous page</button>
@@ -307,7 +308,7 @@ function manageHtml(route) {
         <table class="sheet">
           <thead><tr>
             <th class="pin-left">Name</th><th>Room</th><th>Supplier</th><th>Unit</th><th>Pack</th><th>Pack note</th>
-            <th>Size</th><th>UoM</th><th>Cost</th><th>Price</th><th>Barcodes</th><th>Note</th><th>Hide</th><th class="pin-right">Save</th>
+            <th>Size</th><th>UoM</th><th>Cost</th><th>Barcodes</th><th>Note</th><th>Hide</th><th class="pin-right">Save</th>
           </tr></thead>
           <tbody id="manage-list"></tbody>
         </table>
@@ -423,6 +424,10 @@ function bindManage(route) {
   document.getElementById('page-prev')?.addEventListener('click', () => {
     ui.productPage = Math.max(0, ui.productPage - 1)
     paintProductAdmin()
+  })
+  document.getElementById('add-item')?.addEventListener('click', () => {
+    ui.overlay = { type: 'add-item' }
+    paintOverlay()
   })
   document.getElementById('page-next')?.addEventListener('click', () => {
     ui.productPage += 1
@@ -581,6 +586,7 @@ function paintOverlay() {
 function overlayBody(overlay) {
   if (overlay.type === 'unknown') return unknownHtml(overlay)
   if (overlay.type === 'create') return createHtml(overlay)
+  if (overlay.type === 'add-item') return addItemHtml()
   if (overlay.type === 'keypad') return keypadHtml(overlay)
   if (overlay.type === 'pin') return pinHtml()
   return ''
@@ -625,6 +631,70 @@ function createHtml(overlay) {
     </div>
     <button class="primary" type="button" data-act="save-create">Save and count</button>
     <button class="ghost" type="button" data-act="back-unknown">Back</button>`
+}
+
+function addItemHtml() {
+  const rooms = state.rooms.filter((room) => room.active)
+  return `
+    <h2>Add item</h2>
+    <div class="form-grid">
+      <label class="field" for="add-name">Name</label>
+      <input id="add-name" type="text" autocomplete="off">
+      <label class="field" for="add-room">Room</label>
+      <select id="add-room">${rooms.map((room) => `<option value="${room.id}">${esc(room.name)}</option>`).join('')}</select>
+      <label class="field" for="add-source">Supplier</label>
+      <select id="add-source">${nameOptions(state.suppliers, '')}</select>
+      <label class="field" for="add-unit">Unit</label>
+      <select id="add-unit">${nameOptions(state.units, '')}</select>
+      <label class="field" for="add-pack">Pack</label>
+      <input id="add-pack" type="text" inputmode="decimal" autocomplete="off">
+      <label class="field" for="add-pack-note">Pack note</label>
+      <input id="add-pack-note" type="text" autocomplete="off">
+      <label class="field" for="add-size">Size</label>
+      <input id="add-size" type="text" autocomplete="off">
+      <label class="field" for="add-uom">UoM</label>
+      <select id="add-uom">${nameOptions(state.measures, '')}</select>
+      <label class="field" for="add-cost">Cost in yen</label>
+      <input id="add-cost" type="text" inputmode="numeric" placeholder="Optional" autocomplete="off">
+      <label class="field" for="add-barcode">Barcode</label>
+      <input id="add-barcode" type="text" placeholder="Optional" autocomplete="off">
+      <label class="field" for="add-note">Note</label>
+      <input id="add-note" type="text" autocomplete="off">
+    </div>
+    <button class="primary" type="button" data-act="save-add">Save item</button>
+    <button class="ghost" type="button" data-act="close">Cancel</button>`
+}
+
+async function saveAddItem() {
+  const name = document.getElementById('add-name')?.value.trim()
+  const roomId = Number(document.getElementById('add-room')?.value)
+  const barcode = document.getElementById('add-barcode')?.value.trim()
+  if (!name) return flash('An item needs a name.')
+  if (!roomId) return flash('Choose a room for this item.')
+  const body = {
+    name,
+    room_id: roomId,
+    source: document.getElementById('add-source')?.value || null,
+    stock_unit: document.getElementById('add-unit')?.value || null,
+    pack_qty: document.getElementById('add-pack')?.value || null,
+    pack_qty_note: document.getElementById('add-pack-note')?.value || null,
+    item_size: document.getElementById('add-size')?.value || null,
+    uom: document.getElementById('add-uom')?.value || null,
+    unit_cost_yen: document.getElementById('add-cost')?.value || null,
+    note: document.getElementById('add-note')?.value || null,
+  }
+  if (barcode) body.barcode = barcode
+  const response = await fetch('/api/products', { method: 'POST', headers: authHeaders(true), body: JSON.stringify(body) })
+  const data = await response.json().catch(() => ({}))
+  if (response.status === 401) return loseManager()
+  if (!response.ok) return flash(data.error || 'The item was not added.')
+  state.products = state.products.filter((product) => product.id !== data.product.id).concat(data.product)
+  ui.itemQuery = name
+  ui.productPage = 0
+  ui.overlay = null
+  paintOverlay()
+  paintProductAdmin()
+  flash('Item added.')
 }
 
 function keypadHtml(overlay) {
@@ -770,6 +840,7 @@ function onOverlayClick(event) {
     return
   }
   if (act === 'save-create') return saveCreate()
+  if (act === 'save-add') return saveAddItem()
   if (act === 'save-qty') return saveQty()
   if (act === 'clear-count') return clearCount()
   if (act === 'unlock') return unlock()
@@ -865,7 +936,7 @@ async function saveCreate() {
   const temp = {
     id: tempId, room_id: roomId, name, source: null, stock_unit: null, pack_qty: null, pack_qty_note: null,
     item_size: null, uom: null, unit_cost_yen: costText ? Math.round(Number(costText.replace(/[¥,\s]/g, ''))) : null,
-    unit_price_yen: null, note: null, active: true, barcodes: [overlay.code],
+    note: null, active: true, barcodes: [overlay.code],
   }
   state.products.push(temp)
   state.pending = state.pending.filter((job) => !(job.type === 'unknown' && job.code === overlay.code))
@@ -1058,12 +1129,11 @@ function paintProductAdmin() {
       <td><input data-field="item_size" type="text" value="${esc(product.item_size || '')}"></td>
       <td><select data-field="uom">${nameOptions(state.measures, product.uom)}</select></td>
       <td><input data-field="cost" type="text" inputmode="numeric" value="${esc(product.unit_cost_yen ?? '')}"></td>
-      <td><input data-field="price" type="text" inputmode="numeric" value="${esc(product.unit_price_yen ?? '')}"></td>
       <td><input data-field="barcodes" type="text" value="${esc((product.barcodes || []).join('; '))}"></td>
       <td><input data-field="note" type="text" value="${esc(product.note || '')}"></td>
       <td><input data-field="hidden" type="checkbox" ${product.active ? '' : 'checked'}></td>
       <td class="pin-right"><button class="primary row-save" type="button" data-save="${product.id}">Save</button></td>
-    </tr>`).join('') || '<tr><td colspan="14">No item matches.</td></tr>'
+    </tr>`).join('') || '<tr><td colspan="13">No item matches.</td></tr>'
 }
 
 async function saveTableRow(row) {
@@ -1084,7 +1154,6 @@ async function saveTableRow(row) {
     item_size: field('item_size'),
     uom: field('uom'),
     unit_cost_yen: field('cost'),
-    unit_price_yen: field('price'),
     note: field('note'),
     active: !row.querySelector('[data-field="hidden"]').checked,
   }
