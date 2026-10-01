@@ -274,7 +274,6 @@ function roomHtml(route) {
       <div id="list" class="list"></div>
     </div>
     <div id="strip" class="strip" hidden></div>
-    <div id="overlay" class="overlay" hidden tabindex="-1"></div>
     <video id="camera" class="camera" hidden autoplay playsinline></video>`
 }
 
@@ -381,8 +380,6 @@ function bind(route) {
     if (product) openKeypad(product, { qty: currentCount(product.id) ? formatQty(currentCount(product.id).qty) : '', fresh: true })
   })
   document.getElementById('strip')?.addEventListener('click', onStripClick)
-  document.getElementById('overlay')?.addEventListener('click', onOverlayClick)
-  document.getElementById('overlay')?.addEventListener('input', onOverlayInput)
   document.getElementById('camera-btn')?.addEventListener('click', toggleCamera)
   document.getElementById('logout')?.addEventListener('click', () => {
     clearToken()
@@ -1724,6 +1721,8 @@ async function boot() {
   ui.role = sessionStorage.getItem('dd.role') || ''
   ui.username = sessionStorage.getItem('dd.username') || ''
   document.getElementById('sign-out')?.addEventListener('click', signOut)
+  document.getElementById('overlay')?.addEventListener('click', onOverlayClick)
+  document.getElementById('overlay')?.addEventListener('input', onOverlayInput)
   window.addEventListener('hashchange', onHashChange)
   window.addEventListener('online', () => refresh())
   window.addEventListener('offline', () => {
