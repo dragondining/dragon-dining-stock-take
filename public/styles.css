@@ -159,10 +159,41 @@ a { color: var(--red-dark); }
 .wrap.wide { width: min(1440px, 100%); }
 .pager { display: flex; gap: 8px; align-items: center; margin: 12px 0; flex-wrap: wrap; }
 .pager button { min-height: 44px; width: auto; padding: 0 14px; }
-.table-wrap { overflow-x: auto; background: white; border-radius: 16px; border: 1px solid var(--line); }
-table.sheet { width: 100%; border-collapse: collapse; min-width: 1100px; }
-table.sheet th, table.sheet td { border-bottom: 1px solid var(--line); padding: 6px; text-align: left; vertical-align: middle; }
-table.sheet th { font-size: 0.75rem; color: var(--muted); font-weight: 650; }
+.sheet-tools { display: flex; gap: 8px; margin: 0 0 8px; }
+.sheet-tools button { width: auto; min-height: 40px; margin-top: 0; padding: 0 16px; }
+.table-wrap {
+  overflow: auto;
+  max-height: calc(100dvh - 22rem);
+  min-height: 240px;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  scrollbar-gutter: stable;
+}
+table.sheet { width: max-content; border-collapse: separate; border-spacing: 0; min-width: 1100px; }
+table.sheet th, table.sheet td {
+  border-bottom: 1px solid var(--line);
+  padding: 6px;
+  text-align: left;
+  vertical-align: middle;
+  background: white;
+}
+table.sheet th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--paper);
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 650;
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+table.sheet .pin-left,
+table.sheet .pin-right { position: sticky; z-index: 1; background: white; }
+table.sheet .pin-left { left: 0; box-shadow: 6px 0 8px rgba(36, 24, 26, 0.05); }
+table.sheet .pin-right { right: 0; box-shadow: -6px 0 8px rgba(36, 24, 26, 0.05); }
+table.sheet th.pin-left,
+table.sheet th.pin-right { z-index: 4; background: var(--paper); }
 table.sheet input, table.sheet select { min-height: 44px; width: 140px; }
 table.sheet input[type="checkbox"] { width: 28px; min-height: 28px; }
 table.sheet input[data-field="name"], table.sheet input[data-field="note"], table.sheet input[data-field="barcodes"] { width: 220px; }

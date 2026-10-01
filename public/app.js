@@ -299,11 +299,15 @@ function manageHtml(route) {
         <span id="page-label"></span>
         <button id="page-next" class="ghost" type="button">Next page</button>
       </div>
-      <div class="table-wrap">
+      <div class="sheet-tools">
+        <button id="sheet-left" class="ghost" type="button">Left</button>
+        <button id="sheet-right" class="ghost" type="button">Right</button>
+      </div>
+      <div class="table-wrap" id="sheet-pane">
         <table class="sheet">
           <thead><tr>
-            <th>Name</th><th>Room</th><th>Supplier</th><th>Unit</th><th>Pack</th><th>Pack note</th>
-            <th>Size</th><th>UoM</th><th>Cost</th><th>Price</th><th>Barcodes</th><th>Note</th><th>Hide</th><th></th>
+            <th class="pin-left">Name</th><th>Room</th><th>Supplier</th><th>Unit</th><th>Pack</th><th>Pack note</th>
+            <th>Size</th><th>UoM</th><th>Cost</th><th>Price</th><th>Barcodes</th><th>Note</th><th>Hide</th><th class="pin-right">Save</th>
           </tr></thead>
           <tbody id="manage-list"></tbody>
         </table>
@@ -424,6 +428,13 @@ function bindManage(route) {
     ui.productPage += 1
     paintProductAdmin()
   })
+  const scrollSheet = (direction) => {
+    const pane = document.getElementById('sheet-pane')
+    if (!pane) return
+    pane.scrollBy({ left: direction * Math.max(240, Math.round(pane.clientWidth * 0.75)), behavior: 'smooth' })
+  }
+  document.getElementById('sheet-left')?.addEventListener('click', () => scrollSheet(-1))
+  document.getElementById('sheet-right')?.addEventListener('click', () => scrollSheet(1))
   document.getElementById('manage-list')?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-save]')
     if (button) saveTableRow(button.closest('tr'))
@@ -1038,7 +1049,7 @@ function paintProductAdmin() {
   const rooms = state.rooms.map((room) => `<option value="${room.id}">${esc(room.name)}</option>`).join('')
   list.innerHTML = slice.map((product) => `
     <tr data-id="${product.id}">
-      <td><input data-field="name" type="text" value="${esc(product.name)}"></td>
+      <td class="pin-left"><input data-field="name" type="text" value="${esc(product.name)}"></td>
       <td><select data-field="room_id">${rooms.replace(`value="${product.room_id}"`, `value="${product.room_id}" selected`)}</select></td>
       <td><select data-field="source">${nameOptions(state.suppliers, product.source)}</select></td>
       <td><select data-field="unit">${nameOptions(state.units, product.stock_unit)}</select></td>
@@ -1051,7 +1062,7 @@ function paintProductAdmin() {
       <td><input data-field="barcodes" type="text" value="${esc((product.barcodes || []).join('; '))}"></td>
       <td><input data-field="note" type="text" value="${esc(product.note || '')}"></td>
       <td><input data-field="hidden" type="checkbox" ${product.active ? '' : 'checked'}></td>
-      <td><button class="primary row-save" type="button" data-save="${product.id}">Save</button></td>
+      <td class="pin-right"><button class="primary row-save" type="button" data-save="${product.id}">Save</button></td>
     </tr>`).join('') || '<tr><td colspan="14">No item matches.</td></tr>'
 }
 
