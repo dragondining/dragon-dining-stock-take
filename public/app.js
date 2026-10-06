@@ -2,6 +2,7 @@ import {
   cameraCodeAcceptable,
   classifyScan,
   defaultLabel,
+  idsMatch,
   enqueueCount,
   formatQty,
   formatYen,
@@ -68,11 +69,11 @@ function currentCount(productId) {
 }
 
 function roomById(id) {
-  return state.rooms.find((room) => room.id === id) || null
+  return state.rooms.find((room) => idsMatch(room.id, id)) || null
 }
 
 function productById(id) {
-  return state.products.find((product) => product.id === id) || null
+  return state.products.find((product) => idsMatch(product.id, id)) || null
 }
 
 function authHeaders(json) {
@@ -506,7 +507,7 @@ function itemButton(product, count) {
 function paintRoom(route) {
   const room = roomById(route.roomId)
   const summary = document.getElementById('room-summary')
-  const stats = roomStats(state.rooms, state.products, countsNow()).find((row) => row.id === route.roomId)
+  const stats = roomStats(state.rooms, state.products, countsNow()).find((row) => idsMatch(row.id, route.roomId))
   if (summary) summary.textContent = stats ? `${stats.counted} of ${stats.total} counted` : ''
   const tally = document.getElementById('tally')
   if (tally) {
@@ -524,7 +525,7 @@ function paintRoom(route) {
   }
   const query = ui.itemQuery.trim().toLowerCase()
   const counts = countsNow()
-  const inRoom = state.products.filter((product) => product.active && product.room_id === route.roomId)
+  const inRoom = state.products.filter((product) => product.active && idsMatch(product.room_id, route.roomId))
   const match = (product) => !query || [product.name, product.source, product.stock_unit, ...(product.barcodes || [])].join(' ').toLowerCase().includes(query)
   const rows = inRoom.filter(match).filter((product) => {
     const count = counts.find((entry) => entry.product_id === product.id)
@@ -1141,7 +1142,7 @@ function filteredProducts() {
   const query = ui.itemQuery.trim().toLowerCase()
   const roomId = ui.productRoom ? Number(ui.productRoom) : null
   return state.products
-    .filter((product) => !roomId || product.room_id === roomId)
+    .filter((product) => roomId == null || idsMatch(product.room_id, roomId))
     .filter((product) => !query || [product.name, product.source, ...(product.barcodes || [])].join(' ').toLowerCase().includes(query))
     .sort((a, b) => a.name.localeCompare(b.name) || a.id - b.id)
 }

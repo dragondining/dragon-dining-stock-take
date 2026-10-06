@@ -33,6 +33,12 @@ export function tallyQty(current) {
   return nextQty(current, 1)
 }
 
+export function idsMatch(a, b) {
+  const left = Number(a)
+  const right = Number(b)
+  return Number.isInteger(left) && left === right
+}
+
 export function findProductByBarcode(products, code) {
   const want = String(code ?? '').trim().toUpperCase()
   if (!want) return null

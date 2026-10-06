@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { barcodeTokens, parseCost, parsePack } from '../src/catalog.js'
 import { startServer, starterCatalogPath } from '../server.js'
-import { cameraCodeAcceptable, classifyScan, enqueueCount, gtinCheckDigitOk, lineValue, syncLabel, tallyQty, viewCounts } from '../shared/logic.js'
+import { cameraCodeAcceptable, classifyScan, enqueueCount, gtinCheckDigitOk, idsMatch, lineValue, syncLabel, tallyQty, viewCounts } from '../shared/logic.js'
 
 const catalogPath = starterCatalogPath()
 const catalog = fs.readFileSync(catalogPath)
@@ -56,6 +56,10 @@ test('cleanup rules', () => {
   assert.equal(cameraCodeAcceptable('01317903', [{ barcodes: ['01317903'] }]), true)
   assert.equal(cameraCodeAcceptable('X000PG7RN7', []), false)
   assert.equal(cameraCodeAcceptable('x000pg7rn7', [{ barcodes: ['X000PG7RN7'] }]), true)
+  assert.equal(idsMatch('4', 4), true)
+  assert.equal(idsMatch(4, '4'), true)
+  assert.equal(idsMatch('4', 5), false)
+  assert.equal(idsMatch('', 4), false)
 })
 
 test('stock take acceptance', async () => {
