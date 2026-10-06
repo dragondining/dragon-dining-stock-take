@@ -236,6 +236,7 @@ test('stock take acceptance', async () => {
 
     const page = await (await fetch(`${app.url}/`)).text()
     assert.match(page, /Dragon Dining Stock Take/)
+    assert.match(page, /id="busy"/)
     const client = await (await fetch(`${app.url}/app.js`)).text()
     assert.match(client, /Scan barcode/)
     assert.match(client, /Waiting to sync/)
@@ -243,6 +244,8 @@ test('stock take acceptance', async () => {
     assert.match(client, /Save/)
     assert.match(client, /Fill the box with the barcode/)
     assert.match(client, /Hold steady/)
+    assert.match(client, /Signing in/)
+    assert.match(client, /Finishing the stock take/)
     const css = await (await fetch(`${app.url}/styles.css`)).text()
     assert.match(css, /min-height: 56px/)
   } finally {

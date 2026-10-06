@@ -116,6 +116,23 @@ function paintStatus() {
   }
 }
 
+let busyCount = 0
+
+function showBusy(message) {
+  busyCount += 1
+  const busy = document.getElementById('busy')
+  const label = document.getElementById('busy-label')
+  if (label) label.textContent = message
+  if (busy) busy.hidden = false
+}
+
+function hideBusy() {
+  busyCount = Math.max(0, busyCount - 1)
+  if (busyCount > 0) return
+  const busy = document.getElementById('busy')
+  if (busy) busy.hidden = true
+}
+
 function idb() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open('dragon-dining', 1)
@@ -695,17 +712,22 @@ async function saveAddItem() {
     note: document.getElementById('add-note')?.value || null,
   }
   if (barcode) body.barcode = barcode
-  const response = await fetch('/api/products', { method: 'POST', headers: authHeaders(true), body: JSON.stringify(body) })
-  const data = await response.json().catch(() => ({}))
-  if (response.status === 401) return loseManager()
-  if (!response.ok) return flash(data.error || 'The item was not added.')
-  state.products = state.products.filter((product) => product.id !== data.product.id).concat(data.product)
-  ui.itemQuery = name
-  ui.productPage = 0
-  ui.overlay = null
-  paintOverlay()
-  paintProductAdmin()
-  flash('Item added.')
+  showBusy('Saving…')
+  try {
+    const response = await fetch('/api/products', { method: 'POST', headers: authHeaders(true), body: JSON.stringify(body) })
+    const data = await response.json().catch(() => ({}))
+    if (response.status === 401) return loseManager()
+    if (!response.ok) return flash(data.error || 'The item was not added.')
+    state.products = state.products.filter((product) => product.id !== data.product.id).concat(data.product)
+    ui.itemQuery = name
+    ui.productPage = 0
+    ui.overlay = null
+    paintOverlay()
+    paintProductAdmin()
+    flash('Item added.')
+  } finally {
+    hideBusy()
+  }
 }
 
 function deleteItemHtml(overlay) {
@@ -723,21 +745,26 @@ async function deleteItem() {
   if (!id) return
   const button = document.querySelector('[data-act="confirm-delete"]')
   if (button) button.disabled = true
-  const response = await fetch(`/api/products/${id}`, { method: 'DELETE', headers: authHeaders() })
-  const data = await response.json().catch(() => ({}))
-  if (response.status === 401) return loseManager()
-  if (!response.ok) {
-    if (button) button.disabled = false
-    return flash(data.error || 'The item was not deleted.')
+  showBusy('Deleting…')
+  try {
+    const response = await fetch(`/api/products/${id}`, { method: 'DELETE', headers: authHeaders() })
+    const data = await response.json().catch(() => ({}))
+    if (response.status === 401) return loseManager()
+    if (!response.ok) {
+      if (button) button.disabled = false
+      return flash(data.error || 'The item was not deleted.')
+    }
+    state.products = state.products.filter((product) => product.id !== id)
+    state.counts = state.counts.filter((count) => count.product_id !== id)
+    state.pending = state.pending.filter((job) => job.product_id !== id)
+    savePending()
+    ui.overlay = null
+    paintOverlay()
+    paintProductAdmin()
+    flash('Item deleted.')
+  } finally {
+    hideBusy()
   }
-  state.products = state.products.filter((product) => product.id !== id)
-  state.counts = state.counts.filter((count) => count.product_id !== id)
-  state.pending = state.pending.filter((job) => job.product_id !== id)
-  savePending()
-  ui.overlay = null
-  paintOverlay()
-  paintProductAdmin()
-  flash('Item deleted.')
 }
 
 function keypadHtml(overlay) {
@@ -1201,39 +1228,44 @@ async function saveTableRow(row) {
     note: field('note'),
     active: !row.querySelector('[data-field="hidden"]').checked,
   }
-  const response = await fetch(`/api/products/${id}`, { method: 'PATCH', headers: authHeaders(true), body: JSON.stringify(body) })
-  const data = await response.json()
-  if (response.status === 401) return loseManager()
-  if (!response.ok) {
-    if (button) button.disabled = false
-    return flash(data.error || 'The item was not saved.')
-  }
-  const wanted = field('barcodes').split(/[;,]/).map((code) => code.trim()).filter(Boolean)
-  const had = product.barcodes || []
-  let latest = data.product
-  for (const code of had) {
-    if (wanted.some((value) => value.toUpperCase() === code.toUpperCase())) continue
-    const removed = await fetch(`/api/barcodes?code=${encodeURIComponent(code)}`, { method: 'DELETE', headers: authHeaders() })
-    if (!removed.ok) {
-      const removedBody = await removed.json().catch(() => ({}))
-      flash(removedBody.error || 'A barcode was not removed.')
+  showBusy('Saving…')
+  try {
+    const response = await fetch(`/api/products/${id}`, { method: 'PATCH', headers: authHeaders(true), body: JSON.stringify(body) })
+    const data = await response.json()
+    if (response.status === 401) return loseManager()
+    if (!response.ok) {
+      if (button) button.disabled = false
+      return flash(data.error || 'The item was not saved.')
     }
+    const wanted = field('barcodes').split(/[;,]/).map((code) => code.trim()).filter(Boolean)
+    const had = product.barcodes || []
+    let latest = data.product
+    for (const code of had) {
+      if (wanted.some((value) => value.toUpperCase() === code.toUpperCase())) continue
+      const removed = await fetch(`/api/barcodes?code=${encodeURIComponent(code)}`, { method: 'DELETE', headers: authHeaders() })
+      if (!removed.ok) {
+        const removedBody = await removed.json().catch(() => ({}))
+        flash(removedBody.error || 'A barcode was not removed.')
+      }
+    }
+    for (const code of wanted) {
+      if (had.some((value) => value.toUpperCase() === code.toUpperCase())) continue
+      const linked = await fetch('/api/barcodes', {
+        method: 'POST',
+        headers: authHeaders(true),
+        body: JSON.stringify({ code, product_id: id }),
+      })
+      const linkedBody = await linked.json().catch(() => ({}))
+      if (!linked.ok) flash(linkedBody.error || 'A barcode was not added.')
+      else latest = linkedBody.product
+    }
+    latest = { ...latest, barcodes: wanted, room_id: body.room_id, active: body.active }
+    replaceProduct(latest)
+    if (button) button.disabled = false
+    flash('Saved.')
+  } finally {
+    hideBusy()
   }
-  for (const code of wanted) {
-    if (had.some((value) => value.toUpperCase() === code.toUpperCase())) continue
-    const linked = await fetch('/api/barcodes', {
-      method: 'POST',
-      headers: authHeaders(true),
-      body: JSON.stringify({ code, product_id: id }),
-    })
-    const linkedBody = await linked.json().catch(() => ({}))
-    if (!linked.ok) flash(linkedBody.error || 'A barcode was not added.')
-    else latest = linkedBody.product
-  }
-  latest = { ...latest, barcodes: wanted, room_id: body.room_id, active: body.active }
-  replaceProduct(latest)
-  if (button) button.disabled = false
-  flash('Saved.')
 }
 
 function loseManager() {
@@ -1278,41 +1310,56 @@ function fillLists(section) {
 
 async function addVocab(button) {
   const name = document.getElementById(`new-${button.dataset.add}`).value
-  const response = await fetch(`/api/${button.dataset.path}`, { method: 'POST', headers: authHeaders(true), body: JSON.stringify({ name }) })
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok) return flash(data.error || 'That was not added.')
-  flash('Added.')
-  await refresh()
-  mounted = ''
-  render()
+  showBusy('Saving…')
+  try {
+    const response = await fetch(`/api/${button.dataset.path}`, { method: 'POST', headers: authHeaders(true), body: JSON.stringify({ name }) })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) return flash(data.error || 'That was not added.')
+    flash('Added.')
+    await refresh()
+    mounted = ''
+    render()
+  } finally {
+    hideBusy()
+  }
 }
 
 async function renameVocab(button) {
   const input = document.querySelector(`[data-name="${button.dataset.rename}"][data-kind="${button.dataset.kind}"]`)
-  const response = await fetch(`/api/${button.dataset.path}/${button.dataset.rename}`, {
-    method: 'PATCH',
-    headers: authHeaders(true),
-    body: JSON.stringify({ name: input.value }),
-  })
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok) return flash(data.error || 'That was not renamed.')
-  flash('Saved. Items using the old name were updated.')
-  await refresh()
-  mounted = ''
-  render()
+  showBusy('Saving…')
+  try {
+    const response = await fetch(`/api/${button.dataset.path}/${button.dataset.rename}`, {
+      method: 'PATCH',
+      headers: authHeaders(true),
+      body: JSON.stringify({ name: input.value }),
+    })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) return flash(data.error || 'That was not renamed.')
+    flash('Saved. Items using the old name were updated.')
+    await refresh()
+    mounted = ''
+    render()
+  } finally {
+    hideBusy()
+  }
 }
 
 async function hideVocab(button) {
-  const response = await fetch(`/api/${button.dataset.path}/${button.dataset.hide}`, {
-    method: 'PATCH',
-    headers: authHeaders(true),
-    body: JSON.stringify({ active: button.dataset.next === '1' }),
-  })
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok) return flash(data.error || 'That was not changed.')
-  await refresh()
-  mounted = ''
-  render()
+  showBusy('Saving…')
+  try {
+    const response = await fetch(`/api/${button.dataset.path}/${button.dataset.hide}`, {
+      method: 'PATCH',
+      headers: authHeaders(true),
+      body: JSON.stringify({ active: button.dataset.next === '1' }),
+    })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) return flash(data.error || 'That was not changed.')
+    await refresh()
+    mounted = ''
+    render()
+  } finally {
+    hideBusy()
+  }
 }
 
 async function fillPeople() {
@@ -1361,44 +1408,51 @@ async function fillPeople() {
 }
 
 async function addPerson() {
-  const response = await fetch('/api/people', {
-    method: 'POST',
-    headers: authHeaders(true),
-    body: JSON.stringify({
-      username: document.getElementById('new-username').value,
-      password: document.getElementById('new-password').value,
-      role: document.getElementById('new-role').value,
-    }),
-  })
-  const data = await response.json().catch(() => ({}))
-  if (response.status === 401) return loseManager()
-  if (!response.ok) return flash(data.error || 'The person was not added.')
-  flash('Added.')
-  mounted = ''
-  render()
+  const body = {
+    username: document.getElementById('new-username').value,
+    password: document.getElementById('new-password').value,
+    role: document.getElementById('new-role').value,
+  }
+  showBusy('Saving…')
+  try {
+    const response = await fetch('/api/people', { method: 'POST', headers: authHeaders(true), body: JSON.stringify(body) })
+    const data = await response.json().catch(() => ({}))
+    if (response.status === 401) return loseManager()
+    if (!response.ok) return flash(data.error || 'The person was not added.')
+    flash('Added.')
+    mounted = ''
+    render()
+  } finally {
+    hideBusy()
+  }
 }
 
 async function savePersonRole(card) {
-  const response = await fetch('/api/people', {
-    method: 'PATCH',
-    headers: authHeaders(true),
-    body: JSON.stringify({ username: card.dataset.person, role: card.querySelector('[data-role]').value }),
-  })
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok) return flash(data.error || 'The permission was not saved.')
-  flash('Saved.')
+  const body = { username: card.dataset.person, role: card.querySelector('[data-role]').value }
+  showBusy('Saving…')
+  try {
+    const response = await fetch('/api/people', { method: 'PATCH', headers: authHeaders(true), body: JSON.stringify(body) })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) return flash(data.error || 'The permission was not saved.')
+    flash('Saved.')
+  } finally {
+    hideBusy()
+  }
 }
 
 async function savePersonPassword(card) {
-  const response = await fetch('/api/people', {
-    method: 'PATCH',
-    headers: authHeaders(true),
-    body: JSON.stringify({ username: card.dataset.person, password: card.querySelector('[data-password]').value }),
-  })
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok) return flash(data.error || 'The password was not changed.')
-  card.querySelector('[data-password]').value = ''
-  flash('Password set.')
+  const password = card.querySelector('[data-password]')
+  const body = { username: card.dataset.person, password: password.value }
+  showBusy('Saving…')
+  try {
+    const response = await fetch('/api/people', { method: 'PATCH', headers: authHeaders(true), body: JSON.stringify(body) })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) return flash(data.error || 'The password was not changed.')
+    password.value = ''
+    flash('Password set.')
+  } finally {
+    hideBusy()
+  }
 }
 
 function fillRooms() {
@@ -1417,32 +1471,47 @@ function fillRooms() {
 
 async function addRoom() {
   const name = document.getElementById('new-room').value
-  const response = await fetch('/api/rooms', { method: 'POST', headers: authHeaders(true), body: JSON.stringify({ name }) })
-  const data = await response.json()
-  if (!response.ok) return flash(data.error || 'The room was not added.')
-  state.rooms.push({ ...data.room, active: true })
-  mounted = ''
-  render()
+  showBusy('Saving…')
+  try {
+    const response = await fetch('/api/rooms', { method: 'POST', headers: authHeaders(true), body: JSON.stringify({ name }) })
+    const data = await response.json()
+    if (!response.ok) return flash(data.error || 'The room was not added.')
+    state.rooms.push({ ...data.room, active: true })
+    mounted = ''
+    render()
+  } finally {
+    hideBusy()
+  }
 }
 
 async function renameRoom(id) {
   const name = document.querySelector(`[data-room-name="${id}"]`).value
-  const response = await fetch(`/api/rooms/${id}`, { method: 'PATCH', headers: authHeaders(true), body: JSON.stringify({ name }) })
-  const data = await response.json()
-  if (!response.ok) return flash(data.error || 'The room was not renamed.')
-  const room = roomById(id)
-  if (room) room.name = data.room.name
-  flash('Saved.')
+  showBusy('Saving…')
+  try {
+    const response = await fetch(`/api/rooms/${id}`, { method: 'PATCH', headers: authHeaders(true), body: JSON.stringify({ name }) })
+    const data = await response.json()
+    if (!response.ok) return flash(data.error || 'The room was not renamed.')
+    const room = roomById(id)
+    if (room) room.name = data.room.name
+    flash('Saved.')
+  } finally {
+    hideBusy()
+  }
 }
 
 async function setRoomActive(id, active) {
-  const response = await fetch(`/api/rooms/${id}`, { method: 'PATCH', headers: authHeaders(true), body: JSON.stringify({ active }) })
-  const data = await response.json()
-  if (!response.ok) return flash(data.error || 'The room was not changed.')
-  const room = roomById(id)
-  if (room) room.active = Boolean(data.room.active)
-  mounted = ''
-  render()
+  showBusy('Saving…')
+  try {
+    const response = await fetch(`/api/rooms/${id}`, { method: 'PATCH', headers: authHeaders(true), body: JSON.stringify({ active }) })
+    const data = await response.json()
+    if (!response.ok) return flash(data.error || 'The room was not changed.')
+    const room = roomById(id)
+    if (room) room.active = Boolean(data.room.active)
+    mounted = ''
+    render()
+  } finally {
+    hideBusy()
+  }
 }
 
 function fillImport() {
@@ -1470,18 +1539,23 @@ async function runImport(mode) {
   }
   const abandon = document.getElementById('abandon-box').checked ? '1' : '0'
   const confirm = mode === 'replace' ? '&confirm=REPLACE' : ''
-  const response = await fetch(`/api/import?mode=${mode}${confirm}&abandon=${abandon}`, {
-    method: 'POST',
-    headers: { ...authHeaders(), 'content-type': 'application/octet-stream', 'x-filename': encodeURIComponent(file.name) },
-    body: await file.arrayBuffer(),
-  })
-  const data = await response.json()
-  if (response.status === 401) return loseManager()
-  if (!response.ok) return flash(data.error || 'The import did not finish.')
-  flash('Import finished.')
-  await refresh()
-  const box = document.getElementById('report')
-  if (box) box.innerHTML = reportHtml(data.report)
+  showBusy('Importing…')
+  try {
+    const response = await fetch(`/api/import?mode=${mode}${confirm}&abandon=${abandon}`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'content-type': 'application/octet-stream', 'x-filename': encodeURIComponent(file.name) },
+      body: await file.arrayBuffer(),
+    })
+    const data = await response.json()
+    if (response.status === 401) return loseManager()
+    if (!response.ok) return flash(data.error || 'The import did not finish.')
+    flash('Import finished.')
+    await refresh()
+    const box = document.getElementById('report')
+    if (box) box.innerHTML = reportHtml(data.report)
+  } finally {
+    hideBusy()
+  }
 }
 
 async function loadReport() {
@@ -1533,15 +1607,20 @@ function fillFinish() {
 
 async function finishTake() {
   const label = document.getElementById('finish-label').value
-  const response = await fetch('/api/stocktake/finish', { method: 'POST', headers: authHeaders(true), body: JSON.stringify({ label }) })
-  const data = await response.json()
-  if (response.status === 401) return loseManager()
-  if (!response.ok) return flash(data.error || 'The stock take was not finished.')
-  state.counts = []
-  downloadText(data.filename, data.csv)
-  flash('Stock take finished. The CSV downloaded.')
-  await refresh()
-  location.hash = '#/manage/archives'
+  showBusy('Finishing the stock take…')
+  try {
+    const response = await fetch('/api/stocktake/finish', { method: 'POST', headers: authHeaders(true), body: JSON.stringify({ label }) })
+    const data = await response.json()
+    if (response.status === 401) return loseManager()
+    if (!response.ok) return flash(data.error || 'The stock take was not finished.')
+    state.counts = []
+    downloadText(data.filename, data.csv)
+    flash('Stock take finished. The CSV downloaded.')
+    await refresh()
+    location.hash = '#/manage/archives'
+  } finally {
+    hideBusy()
+  }
 }
 
 async function fillArchives() {
@@ -1855,44 +1934,48 @@ async function submitLogin() {
     error.textContent = ''
   }
   if (button) button.disabled = true
-  let response
+  showBusy('Signing in…')
   try {
-    response = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        username: document.getElementById('login-user').value,
-        password: document.getElementById('login-pass').value,
-      }),
-    })
-  } catch {
-    if (button) button.disabled = false
-    if (error) {
-      error.hidden = false
-      error.textContent = 'The sign-in request did not reach the server.'
+    let response
+    try {
+      response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          username: document.getElementById('login-user').value,
+          password: document.getElementById('login-pass').value,
+        }),
+      })
+    } catch {
+      if (error) {
+        error.hidden = false
+        error.textContent = 'The sign-in request did not reach the server.'
+      }
+      return
     }
-    return
-  }
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok) {
-    if (button) button.disabled = false
-    const message = data.error || 'That username or password is not right.'
-    if (error) {
-      error.hidden = false
-      error.textContent = message
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      const message = data.error || 'That username or password is not right.'
+      if (error) {
+        error.hidden = false
+        error.textContent = message
+      }
+      flash(message)
+      return
     }
-    flash(message)
-    return
+    ui.token = data.token
+    ui.role = data.role
+    ui.username = data.username
+    sessionStorage.setItem('dd.token', data.token)
+    sessionStorage.setItem('dd.refresh', data.refresh_token || '')
+    sessionStorage.setItem('dd.role', data.role || '')
+    sessionStorage.setItem('dd.username', data.username || '')
+    mounted = ''
+    await refresh()
+  } finally {
+    hideBusy()
+    if (button && !ui.token) button.disabled = false
   }
-  ui.token = data.token
-  ui.role = data.role
-  ui.username = data.username
-  sessionStorage.setItem('dd.token', data.token)
-  sessionStorage.setItem('dd.refresh', data.refresh_token || '')
-  sessionStorage.setItem('dd.role', data.role || '')
-  sessionStorage.setItem('dd.username', data.username || '')
-  mounted = ''
-  await refresh()
 }
 
 async function boot() {
