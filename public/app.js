@@ -403,7 +403,26 @@ function bind(route) {
     const product = productById(Number(button.dataset.id))
     if (product) openKeypad(product, { qty: currentCount(product.id) ? formatQty(currentCount(product.id).qty) : '', fresh: true })
   })
-  document.getElementById('strip')?.addEventListener('click', onStripClick)
+  const strip = document.getElementById('strip')
+  if (strip) {
+    strip.addEventListener('pointerdown', (event) => {
+      if (event.target.closest?.('[data-delta]')) ui.stripAdjusting = true
+    })
+    strip.addEventListener('click', onStripClick)
+    strip.addEventListener('keydown', (event) => {
+      if (!event.target.classList?.contains('strip-qty') || event.key !== 'Enter') return
+      event.preventDefault()
+      commitStripQty(event.target)
+    })
+    strip.addEventListener('focusout', (event) => {
+      if (!event.target.classList?.contains('strip-qty')) return
+      if (ui.stripAdjusting) {
+        ui.stripAdjusting = false
+        return
+      }
+      commitStripQty(event.target)
+    })
+  }
   document.getElementById('camera-btn')?.addEventListener('click', toggleCamera)
   document.getElementById('logout')?.addEventListener('click', () => {
     clearToken()
@@ -580,7 +599,7 @@ function paintStrip(room) {
         <div class="meta">${esc(where ? where.name : room?.name || '')}</div>
       </div>
       <button class="step" type="button" data-delta="-1" aria-label="Minus">−</button>
-      <button type="button" class="strip-qty" data-edit="1" aria-label="Edit quantity">${esc(formatQty(count.qty))}</button>
+      <input class="strip-qty" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" aria-label="Quantity" value="${esc(formatQty(count.qty))}">
       <button class="step" type="button" data-delta="1" aria-label="Plus">+</button>`
   }
   strip.hidden = false
@@ -865,20 +884,44 @@ function openNextUnknown() {
   paintRoom(parseHash())
 }
 
+function readStripQty(text) {
+  const raw = String(text ?? '').trim()
+  if (raw === '' || raw === '.') return { empty: true }
+  if (!/^\d*\.?\d*$/.test(raw)) return { error: true }
+  const qty = Math.round(Number(raw) * 1000) / 1000
+  if (!Number.isFinite(qty) || qty < 0) return { error: true }
+  return { qty }
+}
+
+function commitStripQty(input) {
+  const product = ui.strip ? productById(ui.strip.productId) : null
+  if (!product || !input) return
+  const parsed = readStripQty(input.value)
+  if (parsed.empty) return
+  if (parsed.error) return flash('Enter a quantity. Use 0 if there are none.')
+  const current = currentCount(product.id)
+  if (current && Number(current.qty) === parsed.qty) {
+    focusScan()
+    return
+  }
+  setCount(product, parsed.qty)
+  paintRoom(parseHash())
+  focusScan()
+}
+
 function onStripClick(event) {
   const product = ui.strip ? productById(ui.strip.productId) : null
   if (!product) return
+  const delta = event.target.closest?.('[data-delta]')?.dataset.delta
+  if (!delta) return
   const count = currentCount(product.id)
-  if (event.target.dataset.delta) {
-    const qty = Math.max(0, (count ? Number(count.qty) : 0) + Number(event.target.dataset.delta))
-    const rounded = Math.round(qty * 1000) / 1000
-    setCount(product, rounded)
-    paintRoom(parseHash())
-    focusScan()
-  }
-  if (event.target.dataset.edit) {
-    openKeypad(product, { qty: count ? formatQty(count.qty) : '', fresh: true })
-  }
+  const input = document.querySelector('#strip .strip-qty')
+  const parsed = input ? readStripQty(input.value) : null
+  const base = parsed?.qty != null ? parsed.qty : (count ? Number(count.qty) : 0)
+  const rounded = Math.max(0, Math.round((base + Number(delta)) * 1000) / 1000)
+  setCount(product, rounded)
+  paintRoom(parseHash())
+  focusScan()
 }
 
 function onOverlayInput(event) {

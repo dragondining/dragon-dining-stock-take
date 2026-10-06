@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { barcodeTokens, parseCost, parsePack } from '../src/catalog.js'
 import { startServer, starterCatalogPath } from '../server.js'
-import { cameraCodeAcceptable, classifyScan, enqueueCount, gtinCheckDigitOk, idsMatch, lineValue, syncLabel, tallyQty, viewCounts } from '../shared/logic.js'
+import { cameraCodeAcceptable, classifyScan, enqueueCount, formatQty, gtinCheckDigitOk, idsMatch, lineValue, nextQty, syncLabel, tallyQty, viewCounts } from '../shared/logic.js'
 
 const catalogPath = starterCatalogPath()
 const catalog = fs.readFileSync(catalogPath)
@@ -39,6 +39,11 @@ test('cleanup rules', () => {
   assert.equal(lineValue(0, 500), 0)
   assert.equal(lineValue(4, null), null)
   assert.equal(lineValue(1.5, 10), 15)
+  assert.equal(lineValue(2.25, 100), 225)
+  assert.equal(formatQty(2.25), '2.25')
+  assert.equal(formatQty(0.5), '0.5')
+  assert.equal(nextQty(2.5, 1), 3.5)
+  assert.equal(nextQty(0.5, -1), 0)
   assert.equal(tallyQty(null), 1)
   assert.equal(tallyQty(1), 2)
   const queued = enqueueCount([], { product_id: 5, qty: 2, updated_at: 't' })
@@ -244,6 +249,7 @@ test('stock take acceptance', async () => {
     assert.match(client, /Save/)
     assert.match(client, /Fill the box with the barcode/)
     assert.match(client, /Hold steady/)
+    assert.match(client, /inputmode="decimal"/)
     assert.match(client, /Signing in/)
     assert.match(client, /Finishing the stock take/)
     const css = await (await fetch(`${app.url}/styles.css`)).text()

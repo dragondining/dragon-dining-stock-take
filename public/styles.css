@@ -331,14 +331,17 @@ input:focus, select:focus, button:focus-visible {
   line-height: 1;
 }
 .strip .strip-qty {
-  width: auto;
+  width: 5.5rem;
   min-width: 48px;
+  min-height: 48px;
   height: 48px;
-  border: none;
-  background: transparent;
-  font-size: 1.5rem;
+  margin: 0;
+  padding: 0 6px;
+  border-radius: 12px;
+  font-size: 1.35rem;
   font-weight: 850;
   color: var(--ink);
+  text-align: center;
 }
 .pulse { animation: pulse 0.6s ease; }
 @keyframes pulse { from { background: #fff1cc; } to { background: white; } }

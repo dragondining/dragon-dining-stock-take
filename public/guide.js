@@ -9,7 +9,7 @@ export function guideHtml() {
       <li>Sign in at https://dragon-dining-stock-take.vercel.app.</li>
       <li>On Home, open a room. Rooms can be counted in any order.</li>
       <li>Leave <strong>Tally on</strong>. Each scan adds one. The button starts on each time the app is opened.</li>
-      <li>Scan the barcode. The quantity is saved on the item’s own room, and the strip shows that room.</li>
+      <li>Scan the barcode. Each scan adds one. Tap the quantity on the strip to type any number, including a partial such as 0.5. Minus and plus change it by one.</li>
       <li>On a phone, tap <strong>Use camera</strong>. Fill the box with the barcode and hold the phone steady.</li>
       <li>For an empty shelf, turn <strong>Tally off</strong>, tap the item, and enter <strong>0</strong>, or leave it uncounted. An item nobody counted is treated as zero when the manager closes the month.</li>
       <li>Home still shows those items as not counted, so the rooms make it clear what has been completed. Enter a number when you have checked the shelf.</li>
@@ -40,7 +40,7 @@ export function guideHtml() {
       <li><strong>Tally on</strong> adds one for each scan. <strong>Tally off</strong> opens a keypad so you can type the quantity, including 0.</li>
       <li>Tap an item in the list to set its quantity. <strong>Clear count</strong> puts it back on Still to count.</li>
       <li><strong>Still to count</strong> and <strong>Counted</strong> split the room. Search finds an item by name.</li>
-      <li>The strip under a scan has minus, the quantity, and plus.</li>
+      <li>The strip under a scan has minus, the quantity, and plus. Tap the quantity to type any number, including a partial such as 0.5. The next scan adds one.</li>
       <li>A barcode with no item opens <strong>Unknown barcode</strong>. Type the item name and tap it to attach the barcode. Or tap <strong>Create a new item</strong>, enter the name, room, and cost in yen, then <strong>Save and count</strong>. <strong>Skip for now</strong> leaves a banner until someone names it. <strong>Forget this barcode</strong> drops it.</li>
       <li>Two people saving the same item: the latest save is the one kept.</li>
       <li>A phone, tablet, or computer can keep counting if the network drops. Those counts stay on that device until <strong>All counts saved</strong> appears.</li>
