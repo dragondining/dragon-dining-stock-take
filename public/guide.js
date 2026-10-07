@@ -47,19 +47,18 @@ export function guideHtml() {
     </ul>
     <h2>Manager: People</h2>
     <p>Open <strong>Manager → People</strong>. This list is only for a manager.</p>
+    <p>The list shows each username and whether they are Staff or Manager.</p>
     <h3>Add a person</h3>
     <ol>
+      <li>Tap <strong>Add person</strong>.</li>
       <li>Username: 2 to 32 letters, numbers, dots, or dashes. Example: yuki.</li>
       <li>Password: at least 8 characters.</li>
       <li>Permission: <strong>Staff — count and add unknown items</strong>, or <strong>Manager</strong>.</li>
-      <li>Tap <strong>Add person</strong>.</li>
+      <li>Tap <strong>Save</strong>.</li>
     </ol>
     <p>They sign in with that username and password. Staff can count and can add an item when a barcode is unknown. A manager can open the whole Manager menu. Keep at least one manager. The app will refuse to turn the last manager into staff.</p>
     <h3>Change a person</h3>
-    <ul>
-      <li>Change the permission dropdown and tap <strong>Save permission</strong>.</li>
-      <li>Type a new password and tap <strong>Set password</strong>. The new password replaces the old one.</li>
-    </ul>
+    <p>Tap the name. Change the permission, or type a new password. Leave the password blank to keep the current one. Tap <strong>Save</strong>. Tap the name again to close the line without saving.</p>
     <p>People have no delete button. To retire a login, set a new password so the old one stops working, and set the permission to Staff if they should not manage the catalog.</p>
     <h2>Manager: items, lists, and rooms</h2>
     <p><strong>Items and barcodes.</strong> Edit the row, then <strong>Save</strong>. <strong>Add item</strong> puts a new item on the list. Name and room are required. Supplier, Unit, and UoM are dropdowns. Cost is the yen used for the stock value. A barcode can be left blank. An item can have more than one barcode. They are shown together on the row. Scanning any of them counts that item. A barcode stays on only one item. Add or remove a code in that box, then <strong>Save</strong>. Hide keeps an item off the counting lists. <strong>Delete</strong> removes the item, its barcodes, and this month’s count. Delete is on this list only. A finished month still shows the item as it was when that month was closed.</p>
@@ -86,7 +85,7 @@ export function faqHtml() {
     <p><strong>How do I remove an item?</strong> A manager opens Items and barcodes and taps <strong>Delete</strong> on that row, then confirms. Hide keeps the item off the counting lists. Delete removes it. Staff cannot delete an item. A finished month is not changed.</p>
     <p><strong>I cannot open Manager.</strong> That login is staff. Staff count and add unknown items. A manager changes the permission under Manager → People.</p>
     <p><strong>How do I add a person?</strong> Manager → People. Enter a username, a password of at least 8 characters, and Staff or Manager. They sign in with that username.</p>
-    <p><strong>Someone forgot a password.</strong> A manager opens their card, types a new password, and taps Set password.</p>
+    <p><strong>Someone forgot a password.</strong> A manager opens People, taps their name, types a new password, and taps Save.</p>
     <p><strong>Can I remove a person?</strong> There is no delete button. Set a new password so the old one stops working.</p>
     <p><strong>Where are the yen amounts?</strong> On the manager screens: the items table, Finish stock take, and Past stock takes. Counting screens show progress only.</p>
     <p><strong>I finished and no file downloaded.</strong> Open Past stock takes and tap Download CSV for that month.</p>

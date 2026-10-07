@@ -256,6 +256,7 @@ test('stock take acceptance', async () => {
     assert.match(client, /inputmode="decimal"/)
     assert.match(client, /video: true/)
     assert.match(client, /openZxingDetector/)
+    assert.match(client, /person-line/)
     assert.match(client, /Signing in/)
     assert.match(client, /Finishing the stock take/)
     const css = await (await fetch(`${app.url}/styles.css`)).text()

@@ -28,11 +28,13 @@ const ui = {
   flash: '',
   productPage: 0,
   productRoom: '',
+  peopleOpen: null,
 }
 const PAGE_SIZE = 40
 let mounted = ''
 let cameraStream = null
 let cameraToken = 0
+let peopleCache = []
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]))
@@ -1414,39 +1416,69 @@ async function fillPeople() {
     root.innerHTML = `<p class="empty">${esc(data.error || 'People could not be loaded.')}</p>`
     return
   }
+  peopleCache = data.people || []
+  paintPeople()
+}
+
+function paintPeople() {
+  const root = document.getElementById('people-admin')
+  if (!root) return
+  const adding = ui.peopleOpen === 'add'
+  const people = [...peopleCache].sort((a, b) => a.username.localeCompare(b.username))
   root.innerHTML = `
-    <div class="stack" id="people-list">${(data.people || []).map((person) => `
-      <div class="card" data-person="${esc(person.username)}">
-        <strong>${esc(person.username)}</strong>
-        <label class="field">Permission
-          <select data-role>
-            <option value="staff" ${person.role === 'staff' ? 'selected' : ''}>Staff — count and add unknown items</option>
-            <option value="manager" ${person.role === 'manager' ? 'selected' : ''}>Manager</option>
-          </select>
-        </label>
-        <button class="ghost" type="button" data-save-role>Save permission</button>
-        <label class="field">New password<input data-password type="password" autocomplete="new-password"></label>
-        <button class="ghost" type="button" data-save-password>Set password</button>
-      </div>`).join('') || '<p class="empty">No people yet.</p>'}
-    </div>
-    <h2>Add a person</h2>
-    <div class="form-grid">
-      <label class="field">Username<input id="new-username" type="text" autocomplete="off" autocapitalize="off"></label>
-      <label class="field">Password<input id="new-password" type="password" autocomplete="new-password"></label>
-      <label class="field">Permission
-        <select id="new-role">
-          <option value="staff">Staff — count and add unknown items</option>
-          <option value="manager">Manager</option>
-        </select>
-      </label>
-    </div>
-    <button id="add-person" class="primary" type="button">Add person</button>`
-  root.querySelector('#add-person').addEventListener('click', addPerson)
-  root.querySelectorAll('[data-save-role]').forEach((button) => {
-    button.addEventListener('click', () => savePersonRole(button.closest('[data-person]')))
+    <p class="help">Staff count and can add an unknown item. Managers can open the Manager menu.</p>
+    <button id="add-person" class="${adding ? 'ghost' : 'primary'}" type="button">${adding ? 'Close' : 'Add person'}</button>
+    ${adding ? `
+      <div class="person">
+        <div class="person-body">
+          <label class="field">Username<input id="new-username" type="text" autocomplete="off" autocapitalize="off"></label>
+          <label class="field">Password<input id="new-password" type="password" autocomplete="new-password"></label>
+          <label class="field">Permission
+            <select id="new-role">
+              <option value="staff">Staff — count and add unknown items</option>
+              <option value="manager">Manager</option>
+            </select>
+          </label>
+          <button id="save-new-person" class="primary" type="button">Save</button>
+        </div>
+      </div>` : ''}
+    <div class="stack" id="people-list">${people.map((person) => {
+      const open = ui.peopleOpen === person.username
+      const role = person.role === 'manager' ? 'Manager' : 'Staff'
+      return `
+        <div class="person" data-person="${esc(person.username)}">
+          <button class="person-line" type="button" data-open>
+            <strong>${esc(person.username)}</strong>
+            <span>${role}</span>
+          </button>
+          ${open ? `
+            <div class="person-body">
+              <label class="field">Permission
+                <select data-role>
+                  <option value="staff" ${person.role === 'staff' ? 'selected' : ''}>Staff — count and add unknown items</option>
+                  <option value="manager" ${person.role === 'manager' ? 'selected' : ''}>Manager</option>
+                </select>
+              </label>
+              <label class="field">New password<input data-password type="password" autocomplete="new-password" placeholder="Leave blank to keep the current password"></label>
+              <button class="primary" type="button" data-save-person>Save</button>
+            </div>` : ''}
+        </div>`
+    }).join('') || '<p class="empty">No people yet.</p>'}
+    </div>`
+  root.querySelector('#add-person').addEventListener('click', () => {
+    ui.peopleOpen = ui.peopleOpen === 'add' ? null : 'add'
+    paintPeople()
   })
-  root.querySelectorAll('[data-save-password]').forEach((button) => {
-    button.addEventListener('click', () => savePersonPassword(button.closest('[data-person]')))
+  root.querySelector('#save-new-person')?.addEventListener('click', addPerson)
+  root.querySelectorAll('[data-open]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const name = button.closest('[data-person]').dataset.person
+      ui.peopleOpen = ui.peopleOpen === name ? null : name
+      paintPeople()
+    })
+  })
+  root.querySelectorAll('[data-save-person]').forEach((button) => {
+    button.addEventListener('click', () => savePerson(button.closest('[data-person]')))
   })
 }
 
@@ -1463,6 +1495,7 @@ async function addPerson() {
     if (response.status === 401) return loseManager()
     if (!response.ok) return flash(data.error || 'The person was not added.')
     flash('Added.')
+    ui.peopleOpen = null
     mounted = ''
     render()
   } finally {
@@ -1470,29 +1503,23 @@ async function addPerson() {
   }
 }
 
-async function savePersonRole(card) {
-  const body = { username: card.dataset.person, role: card.querySelector('[data-role]').value }
+async function savePerson(card) {
+  const username = card.dataset.person
+  const role = card.querySelector('[data-role]').value
+  const password = card.querySelector('[data-password]').value.trim()
   showBusy('Saving…')
   try {
-    const response = await fetch('/api/people', { method: 'PATCH', headers: authHeaders(true), body: JSON.stringify(body) })
-    const data = await response.json().catch(() => ({}))
-    if (!response.ok) return flash(data.error || 'The permission was not saved.')
+    const roleResponse = await fetch('/api/people', { method: 'PATCH', headers: authHeaders(true), body: JSON.stringify({ username, role }) })
+    const roleData = await roleResponse.json().catch(() => ({}))
+    if (!roleResponse.ok) return flash(roleData.error || 'The permission was not saved.')
+    if (password) {
+      const passwordResponse = await fetch('/api/people', { method: 'PATCH', headers: authHeaders(true), body: JSON.stringify({ username, password }) })
+      const passwordData = await passwordResponse.json().catch(() => ({}))
+      if (!passwordResponse.ok) return flash(passwordData.error || 'The password was not changed.')
+    }
     flash('Saved.')
-  } finally {
-    hideBusy()
-  }
-}
-
-async function savePersonPassword(card) {
-  const password = card.querySelector('[data-password]')
-  const body = { username: card.dataset.person, password: password.value }
-  showBusy('Saving…')
-  try {
-    const response = await fetch('/api/people', { method: 'PATCH', headers: authHeaders(true), body: JSON.stringify(body) })
-    const data = await response.json().catch(() => ({}))
-    if (!response.ok) return flash(data.error || 'The password was not changed.')
-    password.value = ''
-    flash('Password set.')
+    ui.peopleOpen = null
+    await fillPeople()
   } finally {
     hideBusy()
   }
