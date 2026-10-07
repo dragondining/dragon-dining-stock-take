@@ -1021,14 +1021,42 @@ async function linkBarcode(productId) {
   const overlay = ui.overlay
   const product = productById(productId)
   if (!product || !overlay) return
-  if (!product.barcodes.some((code) => code.toUpperCase() === overlay.code.toUpperCase())) product.barcodes = [...product.barcodes, overlay.code]
-  state.pending = state.pending.filter((job) => !(job.type === 'unknown' && job.code.toUpperCase() === overlay.code.toUpperCase()))
-  state.pending = [...state.pending, { type: 'link', code: overlay.code, product_id: productId }]
-  savePending()
-  ui.overlay = null
-  commitScan(product)
-  paintRoom(parseHash())
-  flushQueue()
+  const code = overlay.code
+  showBusy('Saving…')
+  try {
+    let response = null
+    try {
+      response = await fetch('/api/barcodes', { method: 'POST', headers: authHeaders(true), body: JSON.stringify({ code, product_id: product.id }) })
+    } catch { /* keep the barcode on this device until the connection returns */ }
+    if (response?.status === 401) return loseManager()
+    const data = response ? await response.json().catch(() => ({})) : {}
+    if (response?.status === 409) return flash(data.error || 'That barcode is already on another item.')
+    if (response && !response.ok) return flash(data.error || 'The barcode was not saved.')
+    if (!response) {
+      if (!product.barcodes.some((item) => item.toUpperCase() === code.toUpperCase())) product.barcodes = [...product.barcodes, code]
+      state.pending = state.pending.filter((job) => !(job.type === 'unknown' && job.code.toUpperCase() === code.toUpperCase()))
+      state.pending = [...state.pending, { type: 'link', code, product_id: product.id }]
+      savePending()
+      ui.overlay = null
+      commitScan(product)
+      paintRoom(parseHash())
+      flash('Saved on this device. Waiting to sync.')
+      flushQueue()
+      return
+    }
+    replaceProduct(data.product)
+    state.pending = state.pending.filter((job) => !(job.type === 'unknown' && job.code.toUpperCase() === code.toUpperCase()))
+    state.pending = state.pending.filter((job) => !(job.type === 'link' && String(job.code).toUpperCase() === code.toUpperCase()))
+    savePending()
+    ui.overlay = null
+    const saved = productById(product.id) || data.product
+    commitScan(saved)
+    paintRoom(parseHash())
+    flash(`Barcode saved on ${saved.name}.`)
+    flushQueue()
+  } finally {
+    hideBusy()
+  }
 }
 
 async function saveCreate() {
@@ -1048,20 +1076,45 @@ async function saveCreate() {
   if (!ui.token && ui.authMode === 'supabase') return flash('Sign in to add an item.')
   if (!ui.token) return flash('A manager PIN is required to add an item.')
   const body = { name, room_id: roomId, unit_cost_yen: costText || null, barcode: overlay.code }
-  const tempId = -Date.now()
-  const temp = {
-    id: tempId, room_id: roomId, name, source: null, stock_unit: null, pack_qty: null, pack_qty_note: null,
-    item_size: null, uom: null, unit_cost_yen: costText ? Math.round(Number(costText.replace(/[¥,\s]/g, ''))) : null,
-    note: null, active: true, barcodes: [overlay.code],
+  showBusy('Saving…')
+  try {
+    let response = null
+    try {
+      response = await fetch('/api/products', { method: 'POST', headers: authHeaders(true), body: JSON.stringify(body) })
+    } catch { /* keep the new item on this device until the connection returns */ }
+    if (response?.status === 401) return loseManager()
+    const data = response ? await response.json().catch(() => ({})) : {}
+    if (response && !response.ok) return flash(data.error || 'The new item was not saved.')
+    if (response?.ok) {
+      state.products = state.products.filter((product) => product.id !== data.product.id)
+      state.products.push(data.product)
+      state.pending = state.pending.filter((job) => !(job.type === 'unknown' && job.code === overlay.code))
+      savePending()
+      ui.overlay = null
+      commitScan(data.product)
+      paintRoom(parseHash())
+      flash('Item added.')
+      flushQueue()
+      return
+    }
+    const tempId = -Date.now()
+    const temp = {
+      id: tempId, room_id: roomId, name, source: null, stock_unit: null, pack_qty: null, pack_qty_note: null,
+      item_size: null, uom: null, unit_cost_yen: costText ? Math.round(Number(costText.replace(/[¥,\s]/g, ''))) : null,
+      note: null, active: true, barcodes: [overlay.code],
+    }
+    state.products.push(temp)
+    state.pending = state.pending.filter((job) => !(job.type === 'unknown' && job.code === overlay.code))
+    state.pending = [...state.pending, { type: 'create', temp_id: tempId, body }]
+    savePending()
+    ui.overlay = null
+    commitScan(temp)
+    paintRoom(parseHash())
+    flash('Saved on this device. Waiting to sync.')
+    flushQueue()
+  } finally {
+    hideBusy()
   }
-  state.products.push(temp)
-  state.pending = state.pending.filter((job) => !(job.type === 'unknown' && job.code === overlay.code))
-  state.pending = [...state.pending, { type: 'create', temp_id: tempId, body }]
-  savePending()
-  ui.overlay = null
-  commitScan(temp)
-  paintRoom(parseHash())
-  flushQueue()
 }
 
 function saveQty() {
@@ -1132,6 +1185,7 @@ async function flushCreates() {
     state.pending = state.pending.map((item) => item.product_id === job.temp_id ? { ...item, product_id: data.product.id } : item)
     state.pending = state.pending.filter((item) => item !== job)
     if (ui.strip?.productId === job.temp_id) ui.strip.productId = data.product.id
+    flash('Item added.')
   }
 }
 
@@ -1140,7 +1194,10 @@ async function flushLinks() {
     const response = await fetch('/api/barcodes', { method: 'POST', headers: authHeaders(true), body: JSON.stringify({ code: job.code, product_id: job.product_id }) })
     const data = await response.json().catch(() => ({}))
     if (!response.ok && response.status !== 409) throw new Error('wait')
-    if (response.ok) replaceProduct(data.product)
+    if (response.ok) {
+      replaceProduct(data.product)
+      flash(`Barcode saved on ${data.product?.name || 'the item'}.`)
+    }
     if (response.status === 409) {
       const product = productById(job.product_id)
       if (product) product.barcodes = product.barcodes.filter((code) => code.toUpperCase() !== job.code.toUpperCase())
