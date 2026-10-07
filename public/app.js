@@ -766,22 +766,31 @@ async function deleteItem() {
   if (!id) return
   const button = document.querySelector('[data-act="confirm-delete"]')
   if (button) button.disabled = true
+  const previous = {
+    products: state.products,
+    counts: state.counts,
+    pending: state.pending,
+  }
+  state.products = state.products.filter((product) => !idsMatch(product.id, id))
+  state.counts = state.counts.filter((count) => !idsMatch(count.product_id, id))
+  state.pending = state.pending.filter((job) => !idsMatch(job.product_id, id))
+  savePending()
+  ui.overlay = null
+  paintOverlay()
+  paintProductAdmin()
   showBusy('Deleting…')
   try {
     const response = await fetch(`/api/products/${id}`, { method: 'DELETE', headers: authHeaders() })
     const data = await response.json().catch(() => ({}))
     if (response.status === 401) return loseManager()
     if (!response.ok) {
-      if (button) button.disabled = false
+      state.products = previous.products
+      state.counts = previous.counts
+      state.pending = previous.pending
+      savePending()
+      paintProductAdmin()
       return flash(data.error || 'The item was not deleted.')
     }
-    state.products = state.products.filter((product) => product.id !== id)
-    state.counts = state.counts.filter((count) => count.product_id !== id)
-    state.pending = state.pending.filter((job) => job.product_id !== id)
-    savePending()
-    ui.overlay = null
-    paintOverlay()
-    paintProductAdmin()
     flash('Item deleted.')
   } finally {
     hideBusy()
