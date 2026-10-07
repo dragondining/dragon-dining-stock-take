@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "regions": ["hnd1"],
   "builds": [
     { "src": "public/**", "use": "@vercel/static" },
     { "src": "shared/logic.js", "use": "@vercel/static" },
