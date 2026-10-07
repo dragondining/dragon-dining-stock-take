@@ -1739,8 +1739,9 @@ function openDetector() {
 
 async function openBackCamera() {
   const tries = [
-    { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 }, focusMode: { ideal: 'continuous' } }, audio: false },
-    { video: { facingMode: 'environment' }, audio: false },
+    { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+    { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+    { video: true, audio: false },
   ]
   let lastError
   for (const constraints of tries) {
@@ -1752,14 +1753,15 @@ async function openBackCamera() {
 async function tuneCamera(track) {
   if (!track || typeof track.getCapabilities !== 'function') return
   const caps = track.getCapabilities()
+  const settings = typeof track.getSettings === 'function' ? track.getSettings() : {}
   const advanced = []
   if (Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) advanced.push({ focusMode: 'continuous' })
-  if (caps.zoom && typeof caps.zoom.max === 'number') {
+  if (settings.facingMode === 'environment' && caps.zoom && typeof caps.zoom.max === 'number') {
     const target = Math.min(caps.zoom.max, Math.max(caps.zoom.min || 1, 2))
     if (target > (caps.zoom.min || 1)) advanced.push({ zoom: target })
   }
   if (!advanced.length) return
-  try { await track.applyConstraints({ advanced }) } catch { /* keep the picture the phone already opened */ }
+  try { await track.applyConstraints({ advanced }) } catch { /* keep the picture the camera already opened */ }
 }
 
 function cropCamera(video, canvas) {

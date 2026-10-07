@@ -250,6 +250,7 @@ test('stock take acceptance', async () => {
     assert.match(client, /Fill the box with the barcode/)
     assert.match(client, /Hold steady/)
     assert.match(client, /inputmode="decimal"/)
+    assert.match(client, /video: true/)
     assert.match(client, /Signing in/)
     assert.match(client, /Finishing the stock take/)
     const css = await (await fetch(`${app.url}/styles.css`)).text()

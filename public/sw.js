@@ -1,4 +1,4 @@
-const CACHE = 'dragon-dining-v25'
+const CACHE = 'dragon-dining-v26'
 const FILES = ['/', '/index.html', '/styles.css', '/app.js', '/logic.js', '/guide.js', '/manifest.webmanifest', '/icon.svg']
 
 self.addEventListener('install', (event) => {

@@ -10,7 +10,7 @@ export function guideHtml() {
       <li>On Home, open a room. Rooms can be counted in any order.</li>
       <li>Leave <strong>Tally on</strong>. Each scan adds one. The button starts on each time the app is opened.</li>
       <li>Scan the barcode. Each scan adds one. Tap the quantity on the strip to type any number, including a partial such as 0.5. Minus and plus change it by one.</li>
-      <li>On a phone, tap <strong>Use camera</strong>. Fill the box with the barcode and hold the phone steady.</li>
+      <li>On a phone or a computer, tap <strong>Use camera</strong>. Fill the box with the barcode and hold it steady.</li>
       <li>For an empty shelf, turn <strong>Tally off</strong>, tap the item, and enter <strong>0</strong>, or leave it uncounted. An item nobody counted is treated as zero when the manager closes the month.</li>
       <li>Home still shows those items as not counted, so the rooms make it clear what has been completed. Enter a number when you have checked the shelf.</li>
       <li>Watch the top of the screen. <strong>Waiting to sync</strong> means this device still holds counts. <strong>All counts saved</strong> means they are on the server. Check each phone, tablet, and computer.</li>
