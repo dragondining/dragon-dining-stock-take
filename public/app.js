@@ -1726,15 +1726,59 @@ function fillPinChange() {
 }
 
 function openDetector() {
-  const sets = [
-    ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39'],
-    ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'],
-    ['ean_13', 'ean_8', 'code_128'],
-  ]
-  for (const formats of sets) {
-    try { return new BarcodeDetector({ formats }) } catch { /* this browser lacks one of those formats */ }
+  if ('BarcodeDetector' in window) {
+    const sets = [
+      ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39'],
+      ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'],
+      ['ean_13', 'ean_8', 'code_128'],
+    ]
+    for (const formats of sets) {
+      try { return new BarcodeDetector({ formats }) } catch { /* this browser lacks one of those formats */ }
+    }
   }
-  return null
+  return openZxingDetector()
+}
+
+function pointsWidth(points) {
+  const xs = []
+  for (const point of points || []) {
+    const x = typeof point.getX === 'function' ? point.getX() : point.x
+    if (Number.isFinite(x)) xs.push(x)
+  }
+  if (xs.length < 2) return 0
+  return Math.max(...xs) - Math.min(...xs)
+}
+
+function openZxingDetector() {
+  const lib = globalThis.ZXing
+  if (!lib?.MultiFormatReader || !lib.BarcodeFormat || !lib.DecodeHintType) return null
+  const formats = [
+    lib.BarcodeFormat.EAN_13,
+    lib.BarcodeFormat.EAN_8,
+    lib.BarcodeFormat.UPC_A,
+    lib.BarcodeFormat.UPC_E,
+    lib.BarcodeFormat.CODE_128,
+    lib.BarcodeFormat.CODE_39,
+  ].filter((format) => format != null)
+  const hints = new Map()
+  hints.set(lib.DecodeHintType.POSSIBLE_FORMATS, formats)
+  const reader = new lib.MultiFormatReader()
+  reader.setHints(hints)
+  return {
+    async detect(canvas) {
+      try {
+        const source = new lib.HTMLCanvasElementLuminanceSource(canvas)
+        const bitmap = new lib.BinaryBitmap(new lib.HybridBinarizer(source))
+        const result = reader.decode(bitmap)
+        const width = pointsWidth(result.getResultPoints?.())
+        return [{ rawValue: result.getText(), boundingBox: width ? { width } : undefined }]
+      } catch {
+        return []
+      } finally {
+        reader.reset()
+      }
+    },
+  }
 }
 
 async function openBackCamera() {
@@ -1808,8 +1852,8 @@ function setCameraHint(text) {
 
 async function toggleCamera() {
   if (cameraStream) return stopCamera()
-  if (!('BarcodeDetector' in window) || !navigator.mediaDevices) {
-    flash('This browser has no camera barcode reader. The scanner still works.')
+  if (!navigator.mediaDevices) {
+    flash('This browser cannot open a camera. The scanner still works.')
     return
   }
   const detector = openDetector()

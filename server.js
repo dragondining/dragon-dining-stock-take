@@ -35,6 +35,7 @@ const STATIC = {
   '/index.html': ['public/index.html', 'text/html; charset=utf-8'],
   '/styles.css': ['public/styles.css', 'text/css; charset=utf-8'],
   '/app.js': ['public/app.js', 'text/javascript; charset=utf-8'],
+  '/zxing.min.js': ['public/zxing.min.js', 'text/javascript; charset=utf-8'],
   '/logic.js': ['shared/logic.js', 'text/javascript; charset=utf-8'],
   '/guide.js': ['public/guide.js', 'text/javascript; charset=utf-8'],
   '/sw.js': ['public/sw.js', 'text/javascript; charset=utf-8'],

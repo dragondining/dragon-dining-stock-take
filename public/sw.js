@@ -1,5 +1,5 @@
-const CACHE = 'dragon-dining-v26'
-const FILES = ['/', '/index.html', '/styles.css', '/app.js', '/logic.js', '/guide.js', '/manifest.webmanifest', '/icon.svg']
+const CACHE = 'dragon-dining-v27'
+const FILES = ['/', '/index.html', '/styles.css', '/app.js', '/logic.js', '/guide.js', '/zxing.min.js', '/manifest.webmanifest', '/icon.svg']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)).then(() => self.skipWaiting()))
